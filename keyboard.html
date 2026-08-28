@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>알록달록 키보드 놀이터 - 바른 자세 & 손가락 운지법</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- Google Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .font-cute {
+      font-family: 'Gaegu', cursive, sans-serif;
+    }
+
+    /* 손가락 콩콩 바운스 애니메이션 */
+    @keyframes fingerDance {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      50% {
+        transform: translateY(-16px) scale(1.18);
+      }
+    }
+    .finger-active {
+      animation: fingerDance 0.55s infinite ease-in-out;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+      stroke: #0f172a !important;
+      stroke-width: 3.5px !important;
+    }
+
+    /* 키보드 키 펄스 애니메이션 */
+    @keyframes keyGlow {
+      0% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 rgba(245, 158, 11, 0.4);
+      }
+      100% {
+        transform: scale(1.18);
+        box-shadow: 0 0 22px rgba(245, 158, 11, 0.9);
+      }
+    }
+    .key-active {
+      animation: keyGlow 0.6s infinite alternate ease-in-out;
+      border: 3.5px solid #0f172a !important;
+      z-index: 20;
+    }
+
+    /* 도장 쾅! 찍히는 팝업 애니메이션 */
+    @keyframes stampPop {
+      0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+      70% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .stamp-stamped {
+      animation: stampPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+      border-color: #b45309 !important;
+      box-shadow: 0 4px 10px rgba(217, 119, 6, 0.4);
+    }
+
+    /* 5개 완성 시 도장판 반짝임 애니메이션 */
+    @keyframes stampAllComplete {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); filter: drop-shadow(0 0 8px #f59e0b); }
+    }
+    .stamp-complete-bounce {
+      animation: stampAllComplete 0.4s ease-in-out 2;
+    }
+
+    /* 흔들림(오답) 애니메이션 */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .shake-anim {
+      animation: shake 0.35s ease-in-out;
+    }
+
+    /* 8개 손가락 전용 색상 테마 */
+    .finger-lp { background-color: #fca5a5; border-color: #ef4444; } /* 왼손 새끼: 분홍 */
+    .finger-lr { background-color: #fdba74; border-color: #f97316; } /* 왼손 약지: 주황 */
+    .finger-lm { background-color: #fde047; border-color: #eab308; } /* 왼손 중지: 노랑 */
+    .finger-li { background-color: #86efac; border-color: #22c55e; } /* 왼손 검지: 초록 */
+    .finger-ri { background-color: #67e8f9; border-color: #06b6d4; } /* 오른손 검지: 하늘 */
+    .finger-rm { background-color: #93c5fd; border-color: #3b82f6; } /* 오른손 중지: 파랑 */
+    .finger-rr { background-color: #c4b5fd; border-color: #8b5cf6; } /* 오른손 약지: 보라 */
+    .finger-rp { background-color: #f472b6; border-color: #ec4899; } /* 오른손 새끼: 진분홍 */
+    .finger-thumb { background-color: #e2e8f0; border-color: #94a3b8; } /* 엄지: 연회색 */
+  </style>
+</head>
+<body class="bg-gradient-to-b from-amber-100 via-orange-50 to-amber-100 min-h-screen flex flex-col items-center justify-between text-slate-800 p-3 md:p-6">
+
+  <!-- ================= 최상단 헤더 & 네비게이션 탭 ================= -->
+  <header class="w-full max-w-4xl flex flex-col items-center gap-3">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl md:text-4xl">🎈</span>
+      <h1 class="text-2xl md:text-4xl font-black text-amber-900 tracking-tight text-center drop-shadow-sm">
+        알록달록 키보드 타자 놀이터
+      </h1>
+      <span class="text-3xl md:text-4xl">🎮</span>
+    </div>
+
+    <!-- 탭 네비게이션 버튼 -->
+    <nav class="flex flex-wrap justify-center gap-2 md:gap-4 bg-white/90 backdrop-blur p-2 rounded-3xl shadow-md border-2 border-amber-200">
+      <button onclick="switchTab('posture')" id="tab-btn-posture" class="tab-button active px-4 py-2.5 rounded-2xl font-black text-sm md:text-base transition-all flex items-center gap-2 bg-amber-500 text-white shadow-md">
+        <span>🪑</span> 1단계: 바른 자세 배우기
+      </button>
+      <button onclick="switchTab('homepos')" id="tab-btn-homepos" class="tab-button px-4 py-2.5 rounded-2xl font-black text-sm md:text-base transition-all flex items-center gap-2 text-slate-600 hover:bg-amber-100">
+        <span>🖐️</span> 2단계: 손가락 집 찾기
+      </button>
+      <button onclick="switchTab('game')" id="tab-btn-game" class="tab-button px-4 py-2.5 rounded-2xl font-black text-sm md:text-base transition-all flex items-center gap-2 text-slate-600 hover:bg-amber-100">
+        <span>🎮</span> 3단계: 알록달록 타자놀이
+      </button>
+    </nav>
+  </header>
+
+  <!-- ================= 탭 1: 바른 자세 배우기 ================= -->
+  <section id="tab-posture" class="tab-content w-full max-w-4xl my-auto py-4">
+    <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border-4 border-amber-300">
+      <div class="text-center mb-6">
+        <span class="bg-amber-100 text-amber-900 text-sm md:text-base font-black px-4 py-1.5 rounded-full inline-block mb-2">
+          ✨ 키보드를 치기 전 준비 운동!
+        </span>
+        <h2 class="text-2xl md:text-3xl font-black text-slate-800">
+          멋진 컴퓨터 박사의 <span class="text-amber-600">4가지 바른 자세</span>
+        </h2>
+        <p class="text-slate-500 font-bold mt-1 text-sm md:text-base">
+          거울을 보듯 내 몸을 확인하고, 실천했으면 동그라미를 콕! 눌러 체크해 보세요.
+        </p>
+      </div>
+
+      <!-- 4대 원칙 카드 그리드 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- 1. 등 펴기 -->
+        <label class="posture-card cursor-pointer border-3 border-amber-200 hover:border-amber-400 bg-amber-50/50 rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] shadow-sm">
+          <input type="checkbox" onchange="checkPostureCompletion()" class="posture-chk w-6 h-6 text-amber-500 rounded-lg accent-amber-500 cursor-pointer">
+          <div class="w-14 h-14 bg-amber-200 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-inner">
+            🪑
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-slate-800">1. 등은 의자에 쏙!</h3>
+            <p class="text-sm font-semibold text-slate-600 mt-0.5">허리를 꼿꼿하게 펴고 엉덩이를 의자 깊숙이 넣어요.</p>
+          </div>
+        </label>
+
+        <!-- 2. 팔꿈치 L자 -->
+        <label class="posture-card cursor-pointer border-3 border-sky-200 hover:border-sky-400 bg-sky-50/50 rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] shadow-sm">
+          <input type="checkbox" onchange="checkPostureCompletion()" class="posture-chk w-6 h-6 text-sky-500 rounded-lg accent-sky-500 cursor-pointer">
+          <div class="w-14 h-14 bg-sky-200 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-inner">
+            📐
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-slate-800">2. 팔꿈치는 직각 'L'자</h3>
+            <p class="text-sm font-semibold text-slate-600 mt-0.5">팔을 편안하게 내리고 팔꿈치를 예쁜 'L'자로 만들어요.</p>
+          </div>
+        </label>
+
+        <!-- 3. 계란 쥔 손목 -->
+        <label class="posture-card cursor-pointer border-3 border-emerald-200 hover:border-emerald-400 bg-emerald-50/50 rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] shadow-sm">
+          <input type="checkbox" onchange="checkPostureCompletion()" class="posture-chk w-6 h-6 text-emerald-500 rounded-lg accent-emerald-500 cursor-pointer">
+          <div class="w-14 h-14 bg-emerald-200 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-inner">
+            🥚
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-slate-800">3. 손안에 동글동글 계란</h3>
+            <p class="text-sm font-semibold text-slate-600 mt-0.5">손목을 바닥에 붙이지 않고 계란을 쥔 듯 둥글게 띄워요.</p>
+          </div>
+        </label>
+
+        <!-- 4. 모니터 거리 -->
+        <label class="posture-card cursor-pointer border-3 border-purple-200 hover:border-purple-400 bg-purple-50/50 rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] shadow-sm">
+          <input type="checkbox" onchange="checkPostureCompletion()" class="posture-chk w-6 h-6 text-purple-500 rounded-lg accent-purple-500 cursor-pointer">
+          <div class="w-14 h-14 bg-purple-200 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-inner">
+            👀
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-slate-800">4. 눈과 모니터는 팔 한 뼘</h3>
+            <p class="text-sm font-semibold text-slate-600 mt-0.5">눈 건강을 위해 화면과 팔 하나만큼 거리를 두어요.</p>
+          </div>
+        </label>
+      </div>
+
+      <!-- 준비 완료 축하 영역 -->
+      <div class="mt-8 text-center">
+        <div id="posture-incomplete-msg" class="text-amber-700 font-bold text-sm bg-amber-100 py-2 px-4 rounded-xl inline-block">
+          👆 4가지 자세를 모두 확인하고 체크박스를 콕 눌러주세요!
+        </div>
+        <div id="posture-complete-area" class="hidden flex-col items-center gap-3">
+          <div class="text-xl md:text-2xl font-black text-emerald-600 animate-bounce">
+            🎉 최고예요! 멋진 자세 준비 완료! 🎉
+          </div>
+          <button onclick="switchTab('homepos')" class="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-lg rounded-2xl shadow-lg transform hover:scale-105 transition-all flex items-center gap-2">
+            <span>🖐️ 2단계: 손가락 집 찾으러 출발!</span> ➔
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 탭 2: 손가락 집 찾기 (홈 포지션 가이드) ================= -->
+  <section id="tab-homepos" class="tab-content hidden w-full max-w-4xl my-auto py-2">
+    <div class="bg-white rounded-3xl p-5 md:p-7 shadow-xl border-4 border-amber-300 flex flex-col items-center gap-4">
+      
+      <div class="text-center">
+        <span class="bg-sky-100 text-sky-900 text-sm font-black px-4 py-1 rounded-full inline-block mb-1">
+          🏠 기본 자리(홈 포지션) 탐험
+        </span>
+        <h2 class="text-2xl md:text-3xl font-black text-slate-800">
+          내 손가락의 <span class="text-sky-600">알록달록 비밀 방</span>을 찾아요!
+        </h2>
+        <p class="text-slate-600 font-semibold text-xs md:text-sm mt-1">
+          아래의 <span class="text-amber-600 font-bold">손가락 버튼</span>을 누르거나 키보드를 쳐서 담당하는 글자 방을 확인해보세요.
+        </p>
+      </div>
+
+      <!-- 양손 SVG 및 손가락 인터랙션 뷰어 -->
+      <div class="w-full flex flex-wrap justify-center items-center gap-6 md:gap-12 bg-amber-50/70 p-4 rounded-3xl border-2 border-amber-200">
+        <!-- 왼손 뷰어 -->
+        <div class="flex flex-col items-center">
+          <span class="text-sm font-black text-slate-700 bg-white px-3 py-0.5 rounded-full shadow-sm mb-1 border border-slate-200">
+            👈 왼손 (왼쪽 글자들)
+          </span>
+          <svg width="170" height="135" viewBox="0 0 180 140" class="drop-shadow">
+            <path d="M 30 70 Q 20 120 70 125 Q 120 120 110 70 Z" fill="#fed7aa" stroke="#fb923c" stroke-width="2"/>
+            <!-- 손가락 5개 -->
+            <rect id="svg-home-lp" onclick="previewFingerHome('lp')" class="cursor-pointer transition-all hover:opacity-80" x="15" y="45" width="18" height="40" rx="9" fill="#fca5a5" stroke="#ef4444" stroke-width="2" />
+            <rect id="svg-home-lr" onclick="previewFingerHome('lr')" class="cursor-pointer transition-all hover:opacity-80" x="38" y="25" width="18" height="55" rx="9" fill="#fdba74" stroke="#f97316" stroke-width="2" />
+            <rect id="svg-home-lm" onclick="previewFingerHome('lm')" class="cursor-pointer transition-all hover:opacity-80" x="61" y="15" width="18" height="65" rx="9" fill="#fde047" stroke="#eab308" stroke-width="2" />
+            <rect id="svg-home-li" onclick="previewFingerHome('li')" class="cursor-pointer transition-all hover:opacity-80" x="84" y="25" width="18" height="55" rx="9" fill="#86efac" stroke="#22c55e" stroke-width="2" />
+            <rect id="svg-home-lt" onclick="previewFingerHome('thumb')" class="cursor-pointer transition-all hover:opacity-80" x="107" y="65" width="28" height="16" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" transform="rotate(20 107 65)" />
+            <!-- 검지 손가락 기준 표시 아이콘 -->
+            <circle cx="93" cy="40" r="3" fill="#15803d"/>
+          </svg>
+        </div>
+
+        <!-- 가운데 안내 박스 -->
+        <div class="flex flex-col items-center text-center max-w-[210px] bg-white p-3 rounded-2xl shadow-sm border border-amber-200">
+          <div id="home-guide-title" class="font-black text-base text-slate-800">⭐ 손가락 기본 자리 기준점!</div>
+          <p id="home-guide-desc" class="text-xs font-bold text-slate-600 mt-1 leading-relaxed">
+            양손 검지 손가락 <span class="text-emerald-600">ㄹ(F)</span>과 <span class="text-cyan-600">ㅓ(J)</span> 키에는 자리를 찾는 <span class="text-amber-600 font-extrabold">작은 기준 표시</span>가 있어요!
+          </p>
+          <div class="mt-2 text-2xl" id="home-guide-emoji">👉 👈</div>
+        </div>
+
+        <!-- 오른손 뷰어 -->
+        <div class="flex flex-col items-center">
+          <span class="text-sm font-black text-slate-700 bg-white px-3 py-0.5 rounded-full shadow-sm mb-1 border border-slate-200">
+            👉 오른손 (오른쪽 글자들)
+          </span>
+          <svg width="170" height="135" viewBox="0 0 180 140" class="drop-shadow">
+            <path d="M 70 70 Q 60 120 110 125 Q 160 120 150 70 Z" fill="#fed7aa" stroke="#fb923c" stroke-width="2"/>
+            <!-- 손가락 5개 -->
+            <rect id="svg-home-rt" onclick="previewFingerHome('thumb')" class="cursor-pointer transition-all hover:opacity-80" x="45" y="65" width="28" height="16" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" transform="rotate(-20 45 65)" />
+            <rect id="svg-home-ri" onclick="previewFingerHome('ri')" class="cursor-pointer transition-all hover:opacity-80" x="78" y="25" width="18" height="55" rx="9" fill="#67e8f9" stroke="#06b6d4" stroke-width="2" />
+            <rect id="svg-home-rm" onclick="previewFingerHome('rm')" class="cursor-pointer transition-all hover:opacity-80" x="101" y="15" width="18" height="65" rx="9" fill="#93c5fd" stroke="#3b82f6" stroke-width="2" />
+            <rect id="svg-home-rr" onclick="previewFingerHome('rr')" class="cursor-pointer transition-all hover:opacity-80" x="124" y="25" width="18" height="55" rx="9" fill="#c4b5fd" stroke="#8b5cf6" stroke-width="2" />
+            <rect id="svg-home-rp" onclick="previewFingerHome('rp')" class="cursor-pointer transition-all hover:opacity-80" x="147" y="45" width="18" height="40" rx="9" fill="#f472b6" stroke="#ec4899" stroke-width="2" />
+            <!-- 검지 손가락 기준 표시 아이콘 -->
+            <circle cx="87" cy="40" r="3" fill="#0891b2"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 손가락 집 미니 키보드 프리뷰 (명칭 정돈 완료) -->
+      <div class="w-full max-w-2xl bg-slate-900 p-3 rounded-2xl shadow-inner flex flex-col gap-1.5 items-center">
+        <div class="text-xs font-bold text-amber-300 mb-0.5">🌟 가운데 줄(기본 자리)에 손가락 8개를 나란히 올려놓아요!</div>
+        <div class="flex justify-center gap-1.5 w-full">
+          <div id="home-key-KeyA" class="finger-lp w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow">
+            <span class="text-base leading-tight">ㅁ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">새끼<br>손가락</span>
+          </div>
+          <div id="home-key-KeyS" class="finger-lr w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow">
+            <span class="text-base leading-tight">ㄴ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">넷째<br>손가락</span>
+          </div>
+          <div id="home-key-KeyD" class="finger-lm w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow">
+            <span class="text-base leading-tight">ㅇ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">가운데<br>손가락</span>
+          </div>
+          <div id="home-key-KeyF" class="finger-li relative w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow ring-2 ring-emerald-400">
+            <span class="text-base leading-tight">ㄹ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">검지<br>손가락</span>
+            <span class="absolute top-0.5 right-1 text-[10px] text-emerald-800">★</span>
+          </div>
+          <div class="w-2 sm:w-3"></div> <!-- 중앙 간격 -->
+          <div id="home-key-KeyJ" class="finger-ri relative w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow ring-2 ring-cyan-400">
+            <span class="text-base leading-tight">ㅓ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">검지<br>손가락</span>
+            <span class="absolute top-0.5 left-1 text-[10px] text-cyan-800">★</span>
+          </div>
+          <div id="home-key-KeyK" class="finger-rm w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow">
+            <span class="text-base leading-tight">ㅏ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">가운데<br>손가락</span>
+          </div>
+          <div id="home-key-KeyL" class="finger-rr w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow">
+            <span class="text-base leading-tight">ㅣ</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">넷째<br>손가락</span>
+          </div>
+          <div id="home-key-Semicolon" class="finger-rp w-11 sm:w-12 h-14 rounded-xl flex flex-col items-center justify-center font-black text-slate-900 shadow">
+            <span class="text-base leading-tight">;</span>
+            <span class="text-[8px] sm:text-[9px] text-slate-800 text-center leading-tight">새끼<br>손가락</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3단계 이동 버튼 -->
+      <button onclick="switchTab('game')" class="mt-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-lg rounded-2xl shadow-lg transform hover:scale-105 transition-all flex items-center gap-2">
+        <span>🎮 3단계: 신나는 타자 놀이터로 가기!</span> ➔
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ================= 탭 3: 알록달록 타자 놀이터 (실전 게임) ================= -->
+  <section id="tab-game" class="tab-content hidden w-full max-w-4xl flex flex-col items-center gap-3">
+    
+    <!-- 게임 상단 정보판 & 도장판 -->
+    <div class="w-full bg-white rounded-3xl p-4 shadow-lg border-3 border-amber-300 flex flex-wrap items-center justify-between gap-3">
+      <!-- 난이도 선택 -->
+      <div class="flex items-center gap-2">
+        <span class="font-black text-xs md:text-sm text-slate-600">단계:</span>
+        <select id="game-stage-select" onchange="changeGameStage()" class="bg-amber-100 text-amber-900 font-extrabold text-xs md:text-sm px-3 py-1.5 rounded-xl border border-amber-300 focus:outline-none cursor-pointer">
+          <option value="1">1단계: 기본 자리 (ㅁㄴㅇㄹ ㅓㅏㅣ)</option>
+          <option value="2">2단계: 양손 검지 확장 (ㄱㅅㅎ ㅗㅛㅕ)</option>
+          <option value="3">3단계: 전체 자음/모음 골고루</option>
+        </select>
+      </div>
+
+      <!-- 활성화된 도장판 -->
+      <div id="stamp-board-container" class="flex items-center gap-2.5 bg-amber-50 px-4 py-2 rounded-2xl border-2 border-amber-300 shadow-sm transition-all">
+        <span class="text-xs md:text-sm font-black text-amber-900">참 잘했어요 도장:</span>
+        <div id="stamp-board" class="flex gap-2">
+          <div class="stamp-slot w-8 h-8 rounded-full bg-white border-2 border-dashed border-amber-300 flex items-center justify-center text-xs text-slate-400 font-bold">1</div>
+          <div class="stamp-slot w-8 h-8 rounded-full bg-white border-2 border-dashed border-amber-300 flex items-center justify-center text-xs text-slate-400 font-bold">2</div>
+          <div class="stamp-slot w-8 h-8 rounded-full bg-white border-2 border-dashed border-amber-300 flex items-center justify-center text-xs text-slate-400 font-bold">3</div>
+          <div class="stamp-slot w-8 h-8 rounded-full bg-white border-2 border-dashed border-amber-300 flex items-center justify-center text-xs text-slate-400 font-bold">4</div>
+          <div class="stamp-slot w-8 h-8 rounded-full bg-white border-2 border-dashed border-amber-300 flex items-center justify-center text-xs text-slate-400 font-bold">5</div>
+        </div>
+        <span id="stamp-counter" class="text-xs font-black text-amber-700 ml-1">( 0 / 5 )</span>
+      </div>
+    </div>
+
+    <!-- 목표 글자 제시 카드 -->
+    <div id="game-target-card" class="bg-white px-8 py-3 rounded-3xl shadow-xl border-4 border-amber-400 flex items-center gap-6 transition-transform">
+      <div class="text-center">
+        <div class="text-xs font-extrabold text-slate-400">이번 글자</div>
+        <div id="target-char" class="text-6xl md:text-7xl font-black text-indigo-600 transition-all scale-100">ㅁ</div>
+      </div>
+      <div class="h-14 w-0.5 bg-slate-200"></div>
+      <div class="flex flex-col items-start gap-1">
+        <div id="target-finger-badge" class="finger-lp text-sm md:text-base font-black px-4 py-1 rounded-full text-slate-900 shadow-sm">
+          왼손 새끼 손가락
+        </div>
+        <div id="target-action-hint" class="text-xs md:text-sm font-extrabold text-slate-600">
+          분홍색 손가락으로 가볍게 콕!
+        </div>
+      </div>
+    </div>
+
+    <!-- 양손 가이드 SVG (게임 실시간 동기화) -->
+    <div class="flex justify-center gap-8 md:gap-20 my-0.5">
+      <!-- 왼손 -->
+      <div class="text-center">
+        <span class="text-xs font-black text-slate-600 bg-amber-200/80 px-2.5 py-0.5 rounded-full mb-1 inline-block">왼손</span>
+        <svg width="150" height="115" viewBox="0 0 180 140">
+          <path d="M 30 70 Q 20 120 70 125 Q 120 120 110 70 Z" fill="#fed7aa" stroke="#fb923c" stroke-width="2"/>
+          <rect id="game-hand-lp" class="transition-all" x="15" y="45" width="18" height="40" rx="9" fill="#fca5a5" stroke="#ef4444" stroke-width="1.5" />
+          <rect id="game-hand-lr" class="transition-all" x="38" y="25" width="18" height="55" rx="9" fill="#fdba74" stroke="#f97316" stroke-width="1.5" />
+          <rect id="game-hand-lm" class="transition-all" x="61" y="15" width="18" height="65" rx="9" fill="#fde047" stroke="#eab308" stroke-width="1.5" />
+          <rect id="game-hand-li" class="transition-all" x="84" y="25" width="18" height="55" rx="9" fill="#86efac" stroke="#22c55e" stroke-width="1.5" />
+          <rect id="game-hand-lt" class="transition-all" x="107" y="65" width="28" height="16" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5" transform="rotate(20 107 65)" />
+        </svg>
+      </div>
+
+      <!-- 오른손 -->
+      <div class="text-center">
+        <span class="text-xs font-black text-slate-600 bg-amber-200/80 px-2.5 py-0.5 rounded-full mb-1 inline-block">오른손</span>
+        <svg width="150" height="115" viewBox="0 0 180 140">
+          <path d="M 70 70 Q 60 120 110 125 Q 160 120 150 70 Z" fill="#fed7aa" stroke="#fb923c" stroke-width="2"/>
+          <rect id="game-hand-rt" class="transition-all" x="45" y="65" width="28" height="16" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5" transform="rotate(-20 45 65)" />
+          <rect id="game-hand-ri" class="transition-all" x="78" y="25" width="18" height="55" rx="9" fill="#67e8f9" stroke="#06b6d4" stroke-width="1.5" />
+          <rect id="game-hand-rm" class="transition-all" x="101" y="15" width="18" height="65" rx="9" fill="#93c5fd" stroke="#3b82f6" stroke-width="1.5" />
+          <rect id="game-hand-rr" class="transition-all" x="124" y="25" width="18" height="55" rx="9" fill="#c4b5fd" stroke="#8b5cf6" stroke-width="1.5" />
+          <rect id="game-hand-rp" class="transition-all" x="147" y="45" width="18" height="40" rx="9" fill="#f472b6" stroke="#ec4899" stroke-width="1.5" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- 온스크린 가상 키보드 UI -->
+    <div id="game-virtual-keyboard" class="bg-slate-800 p-3 md:p-4 rounded-3xl shadow-2xl flex flex-col gap-1.5 max-w-2xl w-full border-4 border-slate-700">
+      <div class="flex justify-center gap-1.5" id="game-row-1"></div>
+      <div class="flex justify-center gap-1.5" id="game-row-2"></div>
+      <div class="flex justify-center gap-1.5" id="game-row-3"></div>
+      <div class="flex justify-center gap-1.5" id="game-row-4"></div>
+      <div class="flex justify-center gap-1.5 mt-0.5">
+        <div id="game-key-Space" onclick="handleVirtualKeyClick('Space')" class="finger-thumb h-9 md:h-10 w-64 md:w-80 rounded-xl flex items-center justify-center font-black text-slate-700 shadow text-xs md:text-sm cursor-pointer hover:brightness-95 transition-all">
+          띄어쓰기 키 (양손 엄지손가락)
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= 하단 안내 푸터 ================= -->
+  <footer class="w-full max-w-4xl text-center py-2 text-xs md:text-sm font-bold text-slate-500 flex flex-col sm:flex-row items-center justify-center gap-2">
+    <span>💡 키보드를 눌러도 글자가 안 쳐질 때는 키보드의 <strong class="text-amber-700 font-black">[한/영]</strong> 키를 콕 눌러주세요!</span>
+  </footer>
+
+  <!-- ================= 스크립트 로직 ================= -->
+  <script>
+    /* -------------------------------------------------------------
+       1. Web Audio API 사운드 합성기
+    ------------------------------------------------------------- */
+    let audioCtx = null;
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playSuccessSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.12);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } catch (e) {}
+    }
+
+    function playErrorSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.2);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } catch (e) {}
+    }
+
+    function playStampFanfare() {
+      try {
+        const ctx = getAudioContext();
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          const now = ctx.currentTime + (idx * 0.12);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.3);
+        });
+      } catch (e) {}
+    }
+
+    /* -------------------------------------------------------------
+       2. 손가락 및 키보드 데이터 정의 (자연스러운 한국어 손가락 명칭)
+    ------------------------------------------------------------- */
+    const FINGER_MAP = {
+      lp: { name: "왼손 새끼 손가락", hint: "분홍색 손가락으로 가볍게 콕!", colorClass: "finger-lp", gameHandId: "game-hand-lp" },
+      lr: { name: "왼손 넷째 손가락", hint: "주황색 손가락으로 가볍게 콕!", colorClass: "finger-lr", gameHandId: "game-hand-lr" },
+      lm: { name: "왼손 가운데 손가락", hint: "노란색 손가락으로 가볍게 콕!", colorClass: "finger-lm", gameHandId: "game-hand-lm" },
+      li: { name: "왼손 검지 손가락", hint: "초록색 손가락으로 가볍게 콕!", colorClass: "finger-li", gameHandId: "game-hand-li" },
+      ri: { name: "오른손 검지 손가락", hint: "하늘색 손가락으로 가볍게 콕!", colorClass: "finger-ri", gameHandId: "game-hand-ri" },
+      rm: { name: "오른손 가운데 손가락", hint: "파란색 손가락으로 가볍게 콕!", colorClass: "finger-rm", gameHandId: "game-hand-rm" },
+      rr: { name: "오른손 넷째 손가락", hint: "보라색 손가락으로 가볍게 콕!", colorClass: "finger-rr", gameHandId: "game-hand-rr" },
+      rp: { name: "오른손 새끼 손가락", hint: "진분홍색 손가락으로 가볍게 콕!", colorClass: "finger-rp", gameHandId: "game-hand-rp" },
+      thumb: { name: "양손 엄지손가락", hint: "엄지손가락으로 퐁 누르면 띄어쓰기!", colorClass: "finger-thumb", gameHandId: "game-hand-lt" }
+    };
+
+    const KEYBOARD_ROWS = [
+      [
+        { code: "Digit1", char: "1", finger: "lp" }, { code: "Digit2", char: "2", finger: "lr" },
+        { code: "Digit3", char: "3", finger: "lm" }, { code: "Digit4", char: "4", finger: "li" },
+        { code: "Digit5", char: "5", finger: "li" }, { code: "Digit6", char: "6", finger: "ri" },
+        { code: "Digit7", char: "7", finger: "ri" }, { code: "Digit8", char: "8", finger: "rm" },
+        { code: "Digit9", char: "9", finger: "rr" }, { code: "Digit0", char: "0", finger: "rp" }
+      ],
+      [
+        { code: "KeyQ", char: "ㅂ", finger: "lp" }, { code: "KeyW", char: "ㅈ", finger: "lr" },
+        { code: "KeyE", char: "ㄷ", finger: "lm" }, { code: "KeyR", char: "ㄱ", finger: "li" },
+        { code: "KeyT", char: "ㅅ", finger: "li" }, { code: "KeyY", char: "ㅛ", finger: "ri" },
+        { code: "KeyU", char: "ㅕ", finger: "ri" }, { code: "KeyI", char: "ㅑ", finger: "rm" },
+        { code: "KeyO", char: "ㅐ", finger: "rr" }, { code: "KeyP", char: "ㅔ", finger: "rp" }
+      ],
+      [
+        { code: "KeyA", char: "ㅁ", finger: "lp" }, { code: "KeyS", char: "ㄴ", finger: "lr" },
+        { code: "KeyD", char: "ㅇ", finger: "lm" }, { code: "KeyF", char: "ㄹ", finger: "li", isDot: true },
+        { code: "KeyG", char: "ㅎ", finger: "li" }, { code: "KeyH", char: "ㅗ", finger: "ri" },
+        { code: "KeyJ", char: "ㅓ", finger: "ri", isDot: true }, { code: "KeyK", char: "ㅏ", finger: "rm" },
+        { code: "KeyL", char: "ㅣ", finger: "rr" }, { code: "Semicolon", char: ";", finger: "rp" }
+      ],
+      [
+        { code: "KeyZ", char: "ㅋ", finger: "lp" }, { code: "KeyX", char: "ㅌ", finger: "lr" },
+        { code: "KeyC", char: "ㅊ", finger: "lm" }, { code: "KeyV", char: "ㅍ", finger: "li" },
+        { code: "KeyB", char: "ㅠ", finger: "li" }, { code: "KeyN", char: "ㅜ", finger: "ri" },
+        { code: "KeyM", char: "ㅡ", finger: "ri" }
+      ]
+    ];
+
+    const STAGE_POOLS = {
+      1: [
+        { char: "ㅁ", code: "KeyA", finger: "lp" },
+        { char: "ㄴ", code: "KeyS", finger: "lr" },
+        { char: "ㅇ", code: "KeyD", finger: "lm" },
+        { char: "ㄹ", code: "KeyF", finger: "li" },
+        { char: "ㅓ", code: "KeyJ", finger: "ri" },
+        { char: "ㅏ", code: "KeyK", finger: "rm" },
+        { char: "ㅣ", code: "KeyL", finger: "rr" }
+      ],
+      2: [
+        { char: "ㄱ", code: "KeyR", finger: "li" },
+        { char: "ㅅ", code: "KeyT", finger: "li" },
+        { char: "ㅎ", code: "KeyG", finger: "li" },
+        { char: "ㅗ", code: "KeyH", finger: "ri" },
+        { char: "ㅛ", code: "KeyY", finger: "ri" },
+        { char: "ㅕ", code: "KeyU", finger: "ri" },
+        { char: "ㅜ", code: "KeyN", finger: "ri" },
+        { char: "ㅡ", code: "KeyM", finger: "ri" }
+      ],
+      3: [
+        { char: "ㅂ", code: "KeyQ", finger: "lp" },
+        { char: "ㅈ", code: "KeyW", finger: "lr" },
+        { char: "ㄷ", code: "KeyE", finger: "lm" },
+        { char: "ㄱ", code: "KeyR", finger: "li" },
+        { char: "ㅁ", code: "KeyA", finger: "lp" },
+        { char: "ㄴ", code: "KeyS", finger: "lr" },
+        { char: "ㅇ", code: "KeyD", finger: "lm" },
+        { char: "ㄹ", code: "KeyF", finger: "li" },
+        { char: "ㅓ", code: "KeyJ", finger: "ri" },
+        { char: "ㅏ", code: "KeyK", finger: "rm" },
+        { char: "ㅣ", code: "KeyL", finger: "rr" },
+        { char: "ㅐ", code: "KeyO", finger: "rr" },
+        { char: "ㅔ", code: "KeyP", finger: "rp" }
+      ]
+    };
+
+    /* -------------------------------------------------------------
+       3. 탭 전환 및 바른 자세 탭 로직
+    ------------------------------------------------------------- */
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('bg-amber-500', 'text-white', 'shadow-md');
+        btn.classList.add('text-slate-600');
+      });
+
+      const activeSection = document.getElementById(`tab-${tabId}`);
+      if (activeSection) activeSection.classList.remove('hidden');
+
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-amber-500', 'text-white', 'shadow-md');
+        activeBtn.classList.remove('text-slate-600');
+      }
+
+      if (tabId === 'game') {
+        pickNextGameTarget();
+        updateStampBoard();
+      }
+    }
+
+    function checkPostureCompletion() {
+      const chks = document.querySelectorAll('.posture-chk');
+      const allChecked = Array.from(chks).every(c => c.checked);
+
+      const incompMsg = document.getElementById('posture-incomplete-msg');
+      const compArea = document.getElementById('posture-complete-area');
+
+      if (allChecked) {
+        incompMsg.classList.add('hidden');
+        compArea.classList.remove('hidden');
+        compArea.classList.add('flex');
+
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        playSuccessSound();
+      } else {
+        incompMsg.classList.remove('hidden');
+        compArea.classList.add('hidden');
+        compArea.classList.remove('flex');
+      }
+    }
+
+    /* -------------------------------------------------------------
+       4. 2단계: 기본 자리 손가락 집 탐험 인터랙션 (기준점 안내)
+    ------------------------------------------------------------- */
+    function previewFingerHome(fingerKey) {
+      const info = FINGER_MAP[fingerKey];
+      const titleEl = document.getElementById('home-guide-title');
+      const descEl = document.getElementById('home-guide-desc');
+      const emojiEl = document.getElementById('home-guide-emoji');
+
+      if (!info) return;
+
+      playSuccessSound();
+      titleEl.textContent = info.name;
+      descEl.textContent = info.hint;
+
+      if (fingerKey === 'li' || fingerKey === 'ri') {
+        emojiEl.textContent = "⭐ 자리 기준점을 찾아봐요!";
+      } else if (fingerKey === 'thumb') {
+        emojiEl.textContent = "👍 띄어쓰기 퐁!";
+      } else {
+        emojiEl.textContent = "✨ 톡톡 제자리!";
+      }
+    }
+
+    /* -------------------------------------------------------------
+       5. 3단계: 알록달록 타자 놀이터 게임 로직
+    ------------------------------------------------------------- */
+    let currentTarget = null;
+    let stampCount = 0;
+    let isResettingStamps = false;
+
+    function renderVirtualKeyboard() {
+      KEYBOARD_ROWS.forEach((row, rowIndex) => {
+        const rowElem = document.getElementById(`game-row-${rowIndex + 1}`);
+        if (!rowElem) return;
+        rowElem.innerHTML = '';
+        row.forEach(k => {
+          const fInfo = FINGER_MAP[k.finger];
+          const keyDiv = document.createElement("div");
+          keyDiv.id = `game-key-${k.code}`;
+          keyDiv.dataset.code = k.code;
+          keyDiv.className = `${fInfo.colorClass} relative w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center font-black text-slate-800 text-base md:text-lg shadow cursor-pointer transition-all duration-150 select-none hover:scale-105 active:scale-95`;
+          keyDiv.textContent = k.char;
+
+          // 검지 손가락 기준점 별표 표시 (ㄹ, ㅓ)
+          if (k.isDot) {
+            const dot = document.createElement('span');
+            dot.className = 'absolute top-0.5 right-1 text-[10px] text-slate-700 font-bold';
+            dot.textContent = '★';
+            keyDiv.appendChild(dot);
+          }
+
+          keyDiv.onclick = () => handleVirtualKeyClick(k.code);
+          rowElem.appendChild(keyDiv);
+        });
+      });
+    }
+
+    function changeGameStage() {
+      stampCount = 0;
+      updateStampBoard();
+      pickNextGameTarget();
+    }
+
+    function pickNextGameTarget() {
+      const stage = document.getElementById('game-stage-select').value;
+      const pool = STAGE_POOLS[stage] || STAGE_POOLS[1];
+      
+      let nextTarget = pool[Math.floor(Math.random() * pool.length)];
+      if (currentTarget && pool.length > 1) {
+        while (nextTarget.code === currentTarget.code) {
+          nextTarget = pool[Math.floor(Math.random() * pool.length)];
+        }
+      }
+      currentTarget = nextTarget;
+
+      const charEl = document.getElementById('target-char');
+      const badgeEl = document.getElementById('target-finger-badge');
+      const hintEl = document.getElementById('target-action-hint');
+      const fInfo = FINGER_MAP[currentTarget.finger];
+
+      charEl.textContent = currentTarget.char;
+      badgeEl.textContent = fInfo.name;
+      badgeEl.className = `${fInfo.colorClass} text-sm md:text-base font-black px-4 py-1 rounded-full text-slate-900 shadow-sm`;
+      hintEl.textContent = fInfo.hint;
+
+      document.querySelectorAll('.key-active').forEach(el => el.classList.remove('key-active'));
+      document.querySelectorAll('.finger-active').forEach(el => el.classList.remove('finger-active'));
+
+      const keyElem = document.getElementById(`game-key-${currentTarget.code}`);
+      if (keyElem) keyElem.classList.add('key-active');
+
+      const handElem = document.getElementById(fInfo.gameHandId);
+      if (handElem) handElem.classList.add('finger-active');
+    }
+
+    function handleUserInput(inputCode) {
+      if (!currentTarget) return;
+
+      const card = document.getElementById('game-target-card');
+
+      if (inputCode === currentTarget.code) {
+        playSuccessSound();
+        stampCount++;
+        updateStampBoard();
+
+        // 5개 완성 시: 폭죽 + 팡파르 재생 후 도장판 리셋
+        if (stampCount >= 5) {
+          playStampFanfare();
+          confetti({
+            particleCount: 110,
+            spread: 80,
+            origin: { y: 0.45 }
+          });
+
+          const container = document.getElementById('stamp-board-container');
+          if (container) {
+            container.classList.add('stamp-complete-bounce');
+            setTimeout(() => container.classList.remove('stamp-complete-bounce'), 800);
+          }
+
+          if (!isResettingStamps) {
+            isResettingStamps = true;
+            setTimeout(() => {
+              stampCount = 0;
+              updateStampBoard();
+              isResettingStamps = false;
+            }, 850);
+          }
+        }
+
+        // 성공 모션 후 다음 글자 출제
+        card.classList.add('scale-110');
+        setTimeout(() => {
+          card.classList.remove('scale-110');
+          pickNextGameTarget();
+        }, 180);
+
+      } else {
+        playErrorSound();
+        card.classList.add('shake-anim');
+        setTimeout(() => card.classList.remove('shake-anim'), 350);
+      }
+    }
+
+    function handleVirtualKeyClick(code) {
+      handleUserInput(code);
+    }
+
+    function updateStampBoard() {
+      const slots = document.querySelectorAll('.stamp-slot');
+      const counter = document.getElementById('stamp-counter');
+
+      slots.forEach((slot, index) => {
+        if (index < stampCount) {
+          slot.className = 'stamp-slot w-8 h-8 rounded-full stamp-stamped border-2 border-amber-600 flex items-center justify-center text-base text-white font-black shadow transition-all';
+          slot.textContent = '🌟';
+        } else {
+          slot.className = 'stamp-slot w-8 h-8 rounded-full bg-white border-2 border-dashed border-amber-300 flex items-center justify-center text-xs text-slate-400 font-bold';
+          slot.textContent = (index + 1);
+        }
+      });
+
+      if (counter) counter.textContent = `( ${stampCount} / 5 )`;
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const gameTab = document.getElementById('tab-game');
+      if (!gameTab.classList.contains('hidden')) {
+        handleUserInput(e.code);
+      }
+    });
+
+    /* -------------------------------------------------------------
+       6. 앱 시작 초기화
+    ------------------------------------------------------------- */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderVirtualKeyboard();
+      switchTab('posture');
+      updateStampBoard();
+    });
+  </script>
+</body>
+</html>
