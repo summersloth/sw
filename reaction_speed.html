@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>초정밀 순발력 반응속도 테스트</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Tone.js for low-latency web audio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <!-- Canvas Confetti for high-score celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700;800;900&display=swap');
+    
+    * {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Prevent elastic scroll / pull-to-refresh on mobile */
+    html, body {
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+
+    /* Pulse animation for waiting state */
+    @keyframes subtle-pulse {
+      0%, 100% { opacity: 0.95; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+    .pulse-subtle {
+      animation: subtle-pulse 2s infinite ease-in-out;
+    }
+
+    /* Ripple effect on click */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: ripple-anim 0.6s linear;
+      background-color: rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+    }
+
+    @keyframes ripple-anim {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-between selection:bg-rose-500 selection:text-white">
+
+  <header class="w-full max-w-4xl px-4 py-4 flex items-center justify-between z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <i class="fa-solid fa-bolt text-slate-950 text-xl font-black"></i>
+      </div>
+      <div>
+        <h1 class="font-black text-lg tracking-tight leading-none text-white">REACTION LAB</h1>
+        <p class="text-xs text-slate-400 font-medium mt-0.5">순발력 반응속도 테스트</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Audio Toggle Button -->
+      <button id="soundToggleBtn" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold flex items-center gap-2 transition-all border border-slate-700/50">
+        <i class="fa-solid fa-volume-high text-emerald-400" id="soundIcon"></i>
+        <span class="hidden sm:inline" id="soundText">소리 켜짐</span>
+      </button>
+
+      <!-- Ranking View Button -->
+      <button id="navRankingBtn" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold flex items-center gap-2 transition-all border border-slate-700/50">
+        <i class="fa-solid fa-trophy text-amber-400"></i>
+        <span>명예의 전당</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="w-full max-w-4xl px-4 flex-1 flex flex-col justify-center items-center relative my-2">
+
+    <!-- VIEW 1: User Login / Entrance Screen -->
+    <div id="welcomeScreen" class="w-full max-w-md bg-slate-800/80 backdrop-blur-xl border border-slate-700/70 p-7 sm:p-9 rounded-3xl shadow-2xl shadow-black/60 flex flex-col gap-6 text-center animate-fade-in">
+      <div class="space-y-2">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold tracking-wide uppercase">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+          밀리초(ms) 단위 초정밀 측정
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-white">당신의 반응속도는?</h2>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          화면이 <span class="text-rose-400 font-bold">빨간색</span>에서 <span class="text-emerald-400 font-bold">초록색</span>으로 전환되는 찰나의 순간에 화면을 탭하세요!
+        </p>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <div>
+          <label for="playerNameInput" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+            플레이어 닉네임
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i class="fa-solid fa-user-ninja"></i>
+            </div>
+            <input type="text" id="playerNameInput" maxlength="12" placeholder="이름 또는 닉네임 입력 (예: 페이커)" 
+              class="w-full pl-10 pr-4 py-3.5 bg-slate-900/90 border border-slate-700 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm font-medium">
+          </div>
+          <p id="nameValidationMsg" class="text-xs text-rose-400 mt-1.5 hidden flex items-center gap-1">
+            <i class="fa-solid fa-circle-exclamation"></i> 닉네임을 1자 이상 입력해주세요.
+          </p>
+        </div>
+
+        <!-- How it works badges -->
+        <div class="grid grid-cols-3 gap-2 pt-1 text-center">
+          <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/50">
+            <span class="block text-rose-400 font-black text-xs">STEP 1</span>
+            <span class="text-[11px] text-slate-400">빨간색 대기</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/50">
+            <span class="block text-emerald-400 font-black text-xs">STEP 2</span>
+            <span class="text-[11px] text-slate-400">초록 즉시 터치</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/50">
+            <span class="block text-amber-400 font-black text-xs">STEP 3</span>
+            <span class="text-[11px] text-slate-400">순위 랭킹 등록</span>
+          </div>
+        </div>
+
+        <button id="startGameBtn" class="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.98] text-slate-950 font-black text-base shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2">
+          <span>테스트 시작하기</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-slate-700/50 flex justify-between items-center text-xs text-slate-400">
+        <span>현재 등록된 랭커: <strong id="rankerCountDisplay" class="text-emerald-400">0명</strong></span>
+        <button id="quickRankView" class="text-amber-400 hover:underline flex items-center gap-1 font-semibold">
+          <i class="fa-solid fa-medal"></i> 랭킹 확인
+        </button>
+      </div>
+    </div>
+
+    <div id="gameScreen" class="w-full h-[70vh] min-h-[480px] max-h-[720px] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col justify-between hidden transition-colors duration-200">
+      
+      <!-- Top info bar overlay inside Game canvas -->
+      <div class="w-full px-6 py-4 flex items-center justify-between text-white/90 z-10 pointer-events-none">
+        <div class="flex items-center gap-2 bg-black/25 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold">
+          <i class="fa-solid fa-user text-emerald-300"></i>
+          <span id="activePlayerName">플레이어</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="streakBadge" class="bg-black/25 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold">
+            시도 횟수: <span id="attemptCount">0</span>회
+          </div>
+          <button id="exitGameBtn" class="pointer-events-auto bg-black/30 hover:bg-black/50 text-white/90 px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> 종료
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Game Feedback Center -->
+      <div id="gameArea" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center cursor-pointer select-none">
+        
+        <!-- Dynamic Center Icon & Content -->
+        <div id="gameIconWrapper" class="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center mb-6 backdrop-blur-sm pointer-events-none transition-transform duration-150">
+          <i id="gameIcon" class="fa-solid fa-hourglass-start text-4xl text-white"></i>
+        </div>
+
+        <h2 id="gameTitle" class="text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md pointer-events-none mb-3">
+          준비...
+        </h2>
+
+        <p id="gameSubtext" class="text-base sm:text-xl text-white/90 max-w-md font-medium leading-relaxed drop-shadow-sm pointer-events-none">
+          화면이 초록색으로 바뀔 때까지 기다리세요.
+        </p>
+
+        <!-- Result details badge (only in RESULT state) -->
+        <div id="resultStatsCard" class="mt-6 flex flex-col items-center gap-3 hidden pointer-events-none">
+          <div class="px-5 py-2.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 flex items-center gap-3">
+            <span id="resultTierBadge" class="text-xs font-black px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 uppercase tracking-wide">
+              신급 반응속도
+            </span>
+            <span id="resultTierDesc" class="text-sm font-semibold text-white">상위 1% 프로게이머 수준</span>
+          </div>
+          <span class="text-xs text-white/75 animate-bounce mt-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-hand-pointer"></i> 화면을 아무 곳이나 터치하면 다시 시작합니다
+          </span>
+        </div>
+      </div>
+
+      <!-- Bottom Status Bar inside Game Arena -->
+      <div class="w-full px-6 py-4 flex items-center justify-between text-xs text-white/70 z-10 pointer-events-none">
+        <span id="stateTipText">💡 초록색 이전에 누르면 파울 처리됩니다!</span>
+        <span id="bestScoreMini">최고 기록: <strong class="text-white font-bold">-</strong></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: Leaderboard Modal -->
+  <div id="rankingModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-slate-800 border border-slate-700/80 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-up">
+      
+      <!-- Modal Header -->
+      <div class="p-5 sm:p-6 border-b border-slate-700/60 flex items-center justify-between bg-slate-800/80">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <i class="fa-solid fa-trophy text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-white">명예의 전당 (순발력 랭킹)</h3>
+            <p class="text-xs text-slate-400">가장 빠른 반응속도 상위 50위</p>
+          </div>
+        </div>
+        <button id="closeRankingBtn" class="w-9 h-9 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Modal Leaderboard List -->
+      <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-2.5" id="rankingListContainer">
+        <!-- Injected via Javascript -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 sm:p-5 border-t border-slate-700/60 bg-slate-900/60 flex items-center justify-between gap-3">
+        <button id="openResetModalBtn" class="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-xs font-bold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>랭킹 초기화 (관리자)</span>
+        </button>
+
+        <button id="closeRankingBottomBtn" class="px-5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Password Verification for Ranking Reset -->
+  <div id="resetPasswordModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-60 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-slate-800 border border-rose-500/30 w-full max-w-sm rounded-3xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+          <i class="fa-solid fa-shield-halved text-xl"></i>
+        </div>
+        <div>
+          <h4 class="text-base font-extrabold text-white">랭킹 초기화 인증</h4>
+          <p class="text-xs text-slate-400">관리자 비밀번호를 입력해주세요.</p>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <label for="adminPasswordInput" class="block text-xs font-bold text-slate-300">비밀번호</label>
+      <!-- MODAL: Password Verification for Ranking Reset -->
+      <div class="space-y-2">
+        <label for="adminPasswordInput" class="block text-xs font-bold text-slate-300">비밀번호</label>
+        <div class="relative">
+          <input type="password" id="adminPasswordInput" placeholder="비밀번호를 입력하세요"
+            class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-sm">
+        </div>
+        <p id="resetErrorMsg" class="text-xs text-rose-400 hidden flex items-center gap-1 pt-1">
+          <i class="fa-solid fa-circle-xmark"></i> 비밀번호가 일치하지 않습니다.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button id="cancelResetBtn" class="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold transition">
+          취소
+        </button>
+        <button id="confirmResetBtn" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-rose-600/30">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>초기화 실행</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST Notification UI (No alerts!) -->
+  <div id="toastNotification" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800/95 border border-slate-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-none transition-all duration-300 translate-y-20 opacity-0 z-70">
+    <div id="toastIcon" class="text-emerald-400 text-base">
+      <i class="fa-solid fa-circle-check"></i>
+    </div>
+    <span id="toastMessage" class="text-sm font-semibold">알림 메시지</span>
+  </div>
+
+  <footer class="w-full max-w-4xl px-4 py-3 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800/80">
+    <div>
+      <span>기준 참고: 인간의 평균 반응속도는 약 <strong>200ms ~ 270ms</strong> 사이입니다.</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span>F1 드라이버: ~100ms</span>
+      <span>•</span>
+      <span>프로게이머: 130~170ms</span>
+    </div>
+  </footer>
+
+  <script>
+    /* GAME STATE MANAGEMENT */
+    const GameState = {
+      IDLE: 'IDLE',
+      WAITING: 'WAITING',   // Red screen: waiting for random timer
+      READY: 'READY',       // Green screen: click NOW!
+      EARLY: 'EARLY',       // Yellow screen: clicked too early!
+      RESULT: 'RESULT'      // Blue/Green result screen: displays ms
+    };
+
+    let currentState = GameState.IDLE;
+    let currentPlayerName = '';
+    let waitTimer = null;
+    let startTime = 0;
+    let reactionTime = 0;
+    let attemptCount = 0;
+    let soundEnabled = true;
+    let bestScoreThisSession = null;
+
+    // Admin Password
+    const ADMIN_PASSWORD = "2010";
+
+    // In-memory Leaderboard Store with some realistic initial benchmarks
+    let leaderboard = [
+      { id: 'lb-1', name: '빛의속도', time: 142, date: '최근' },
+      { id: 'lb-2', name: 'F1드라이버', time: 168, date: '최근' },
+      { id: 'lb-3', name: '프로게이머K', time: 195, date: '최근' },
+      { id: 'lb-4', name: '매의눈', time: 212, date: '최근' },
+      { id: 'lb-5', name: '평균한국인', time: 245, date: '최근' }
+    ];
+
+    let synthsInitialized = false;
+    let toneSynth = null;
+    let toneNoise = null;
+
+    function initAudio() {
+      if (synthsInitialized) return;
+      try {
+        toneSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+        toneSynth.volume.value = -8;
+        synthsInitialized = true;
+      } catch (err) {
+        console.warn("Audio initialization postponed until user interaction:", err);
+      }
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        if (!synthsInitialized) initAudio();
+        if (Tone.context.state !== 'running') {
+          Tone.start();
+        }
+
+        const now = Tone.now();
+        if (type === 'green') {
+          // Sharp high alert chime when turned green
+          toneSynth.triggerAttackRelease("C6", "32n", now);
+        } else if (type === 'success') {
+          // Pleasant high chord on successful click
+          toneSynth.triggerAttackRelease(["E5", "G5", "C6"], "16n", now);
+        } else if (type === 'early') {
+          // Low buzz on foul
+          toneSynth.triggerAttackRelease(["C3", "Db3"], "8n", now);
+        } else if (type === 'click') {
+          // Subtle interface click
+          toneSynth.triggerAttackRelease("G4", "64n", now);
+        }
+      } catch (e) {
+        // Fallback or ignore if sound fails
+      }
+    }
+
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const nameValidationMsg = document.getElementById('nameValidationMsg');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const activePlayerName = document.getElementById('activePlayerName');
+    const attemptCountEl = document.getElementById('attemptCount');
+    const exitGameBtn = document.getElementById('exitGameBtn');
+    const rankerCountDisplay = document.getElementById('rankerCountDisplay');
+    const bestScoreMini = document.getElementById('bestScoreMini');
+
+    const gameArea = document.getElementById('gameArea');
+    const gameIconWrapper = document.getElementById('gameIconWrapper');
+    const gameIcon = document.getElementById('gameIcon');
+    const gameTitle = document.getElementById('gameTitle');
+    const gameSubtext = document.getElementById('gameSubtext');
+    const resultStatsCard = document.getElementById('resultStatsCard');
+    const resultTierBadge = document.getElementById('resultTierBadge');
+    const resultTierDesc = document.getElementById('resultTierDesc');
+    const stateTipText = document.getElementById('stateTipText');
+
+    const rankingModal = document.getElementById('rankingModal');
+    const rankingListContainer = document.getElementById('rankingListContainer');
+    const navRankingBtn = document.getElementById('navRankingBtn');
+    const quickRankView = document.getElementById('quickRankView');
+    const closeRankingBtn = document.getElementById('closeRankingBtn');
+    const closeRankingBottomBtn = document.getElementById('closeRankingBottomBtn');
+
+    const resetPasswordModal = document.getElementById('resetPasswordModal');
+    const openResetModalBtn = document.getElementById('openResetModalBtn');
+    const adminPasswordInput = document.getElementById('adminPasswordInput');
+    const resetErrorMsg = document.getElementById('resetErrorMsg');
+    const cancelResetBtn = document.getElementById('cancelResetBtn');
+    const confirmResetBtn = document.getElementById('confirmResetBtn');
+
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIcon = document.getElementById('soundIcon');
+    const soundText = document.getElementById('soundText');
+
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+
+    let toastTimeout = null;
+    function showToast(message, type = 'success') {
+      clearTimeout(toastTimeout);
+      toastMessage.innerText = message;
+      
+      if (type === 'success') {
+        toastIcon.className = 'text-emerald-400 text-base';
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+      } else if (type === 'error') {
+        toastIcon.className = 'text-rose-400 text-base';
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+      } else {
+        toastIcon.className = 'text-amber-400 text-base';
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+      }
+
+      toastNotification.classList.remove('translate-y-20', 'opacity-0');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+
+      toastTimeout = setTimeout(() => {
+        toastNotification.classList.add('translate-y-20', 'opacity-0');
+        toastNotification.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+
+    function getTierInfo(ms) {
+      if (ms < 150) {
+        return { badge: '신급 반응속도', desc: '상위 0.1% 전투기 조종사 / 신인류', color: 'bg-purple-500' };
+      } else if (ms < 190) {
+        return { badge: '프로게이머급', desc: '상위 1% e스포츠 프로 선수 수준', color: 'bg-emerald-400' };
+      } else if (ms < 230) {
+        return { badge: '상위권 운동선수', desc: '상위 10% 매우 뛰어난 반응속도', color: 'bg-sky-400' };
+      } else if (ms < 280) {
+        return { badge: '평균 수준', desc: '건강한 일반 성인의 표준 속도', color: 'bg-amber-400' };
+      } else if (ms < 350) {
+        return { badge: '나른한 곰', desc: '조금 졸리신가요? 집중해보세요!', color: 'bg-orange-400' };
+      } else {
+        return { badge: '느긋한 거북이', desc: '화면에 손가락을 미리 준비해보세요!', color: 'bg-rose-400' };
+      }
+    }
+
+    soundToggleBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      if (soundEnabled) {
+        initAudio();
+        soundIcon.className = 'fa-solid fa-volume-high text-emerald-400';
+        soundText.innerText = '소리 켜짐';
+        showToast('효과음이 켜졌습니다.', 'info');
+      } else {
+        soundIcon.className = 'fa-solid fa-volume-xmark text-slate-400';
+        soundText.innerText = '소리 꺼짐';
+        showToast('효과음이 꺼졌습니다.', 'info');
+      }
+    });
+
+    function createRipple(e) {
+      const rect = gameScreen.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = `${size}px`;
+      
+      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left + rect.width / 2);
+      const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top + rect.height / 2);
+
+      ripple.style.left = `${clientX - rect.left - size / 2}px`;
+      ripple.style.top = `${clientY - rect.top - size / 2}px`;
+      gameScreen.appendChild(ripple);
+
+      setTimeout(() => {
+        ripple.remove();
+      }, 600);
+    }
+
+    function setGameVisualState(state, customMs = null) {
+      currentState = state;
+
+      // Reset common visual classes
+      gameScreen.classList.remove('bg-rose-600', 'bg-emerald-500', 'bg-amber-500', 'bg-slate-800', 'bg-blue-600');
+      gameIconWrapper.classList.remove('pulse-subtle');
+      resultStatsCard.classList.add('hidden');
+
+      switch (state) {
+        case GameState.WAITING:
+          // RED SCREEN
+          gameScreen.classList.add('bg-rose-600');
+          gameIcon.className = 'fa-solid fa-ellipsis text-4xl text-white';
+          gameIconWrapper.classList.add('pulse-subtle');
+          gameTitle.innerText = '기다리세요...';
+          gameSubtext.innerText = '초록색으로 바뀌는 순간 최대한 빨리 터치하세요!';
+          stateTipText.innerText = '⚠️ 아직 터치하지 마세요!';
+          break;
+
+        case GameState.READY:
+          // GREEN SCREEN
+          gameScreen.classList.add('bg-emerald-500');
+          gameIcon.className = 'fa-solid fa-hand-pointer text-4xl text-slate-950';
+          gameTitle.innerText = '클릭하세요!!';
+          gameSubtext.innerText = '지금 즉시 터치!';
+          stateTipText.innerText = '⚡ 번개처럼 터치하세요!';
+          playSound('green');
+          break;
+
+        case GameState.EARLY:
+          // YELLOW / ORANGE FOUL SCREEN
+          gameScreen.classList.add('bg-amber-500');
+          gameIcon.className = 'fa-solid fa-triangle-exclamation text-4xl text-slate-950';
+          gameTitle.innerText = '너무 빨랐습니다!';
+          gameSubtext.innerText = '초록색이 되기 전에 눌렀습니다. 화면을 탭하여 다시 시도하세요.';
+          stateTipText.innerText = '❌ 부정출발 감지';
+          playSound('early');
+          break;
+
+        case GameState.RESULT:
+          // BLUE RESULT SCREEN
+          gameScreen.classList.add('bg-blue-600');
+          gameIcon.className = 'fa-solid fa-stopwatch text-4xl text-white';
+          gameTitle.innerHTML = `<span class="text-yellow-300 font-black">${customMs}</span> ms`;
+          gameSubtext.innerText = '당신의 반응속도 기록입니다.';
+
+          const tier = getTierInfo(customMs);
+          resultTierBadge.innerText = tier.badge;
+          resultTierBadge.className = `text-xs font-black px-2.5 py-1 rounded-lg ${tier.color} text-slate-950 uppercase tracking-wide`;
+          resultTierDesc.innerText = tier.desc;
+          resultStatsCard.classList.remove('hidden');
+
+          stateTipText.innerText = '✨ 화면을 다시 터치하면 다음 테스트가 진행됩니다.';
+          playSound('success');
+
+          // Celebrate if top tier
+          if (customMs <= 200) {
+            confetti({
+              particleCount: 50,
+              spread: 60,
+              origin: { y: 0.6 }
+            });
+          }
+          break;
+      }
+    }
+
+    function startRound() {
+      clearTimeout(waitTimer);
+      setGameVisualState(GameState.WAITING);
+
+      // Random delay between 1.8 seconds and 4.5 seconds
+      const randomWait = Math.floor(Math.random() * 2700) + 1800;
+
+      waitTimer = setTimeout(() => {
+        if (currentState === GameState.WAITING) {
+          startTime = performance.now();
+          setGameVisualState(GameState.READY);
+        }
+      }, randomWait);
+    }
+
+    function handleInteraction(e) {
+      if (e) createRipple(e);
+
+      if (currentState === GameState.WAITING) {
+        // Clicked too early (Foul)
+        clearTimeout(waitTimer);
+        setGameVisualState(GameState.EARLY);
+      } else if (currentState === GameState.READY) {
+        // Valid Click! Record millisecond reaction time
+        const endTime = performance.now();
+        reactionTime = Math.round(endTime - startTime);
+        attemptCount++;
+        attemptCountEl.innerText = attemptCount;
+
+        // Check best record this session
+        if (bestScoreThisSession === null || reactionTime < bestScoreThisSession) {
+          bestScoreThisSession = reactionTime;
+          bestScoreMini.innerHTML = `최고 기록: <strong class="text-emerald-300 font-black">${bestScoreThisSession} ms</strong>`;
+        }
+
+        // Record to leaderboard
+        saveScoreToLeaderboard(currentPlayerName, reactionTime);
+
+        // Transition to Result
+        setGameVisualState(GameState.RESULT, reactionTime);
+
+      } else if (currentState === GameState.EARLY || currentState === GameState.RESULT) {
+        // Restart a new attempt
+        startRound();
+      }
+    }
+
+    // High performance pointerdown listener for ultra low tap latency
+    gameArea.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handleInteraction(e);
+    });
+
+    function updateRankerCountDisplay() {
+      rankerCountDisplay.innerText = `${leaderboard.length}명`;
+    }
+
+    function saveScoreToLeaderboard(name, time) {
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      leaderboard.push({
+        id: 'lb-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        name: name || '익명 도전자',
+        time: time,
+        date: timeStr
+      });
+
+      // Sort ascending (fastest reaction time first)
+      leaderboard.sort((a, b) => a.time - b.time);
+
+      // Keep top 50
+      if (leaderboard.length > 50) {
+        leaderboard = leaderboard.slice(0, 50);
+      }
+
+      updateRankerCountDisplay();
+    }
+
+    function renderLeaderboard() {
+      rankingListContainer.innerHTML = '';
+
+      if (leaderboard.length === 0) {
+        rankingListContainer.innerHTML = `
+          <div class="py-12 text-center text-slate-400">
+            <i class="fa-solid fa-ghost text-4xl mb-3 text-slate-500"></i>
+            <p class="text-sm font-semibold">등록된 랭킹 기록이 없습니다.</p>
+            <p class="text-xs text-slate-500 mt-1">첫 번째 도전자가 되어 명예의 전당을 장식하세요!</p>
+          </div>
+        `;
+        return;
+      }
+
+      leaderboard.forEach((item, index) => {
+        const rank = index + 1;
+        let rankBadge = '';
+        let rowStyle = 'bg-slate-900/60 border-slate-700/40';
+
+        if (rank === 1) {
+          rankBadge = '<span class="w-7 h-7 rounded-xl bg-amber-500 text-slate-950 font-black flex items-center justify-center text-sm shadow-md shadow-amber-500/20"><i class="fa-solid fa-crown"></i></span>';
+          rowStyle = 'bg-gradient-to-r from-amber-500/10 to-slate-900/70 border-amber-500/40';
+        } else if (rank === 2) {
+          rankBadge = '<span class="w-7 h-7 rounded-xl bg-slate-300 text-slate-950 font-black flex items-center justify-center text-sm"><i class="fa-solid fa-medal"></i></span>';
+          rowStyle = 'bg-gradient-to-r from-slate-300/10 to-slate-900/70 border-slate-400/40';
+        } else if (rank === 3) {
+          rankBadge = '<span class="w-7 h-7 rounded-xl bg-amber-700 text-white font-black flex items-center justify-center text-sm"><i class="fa-solid fa-award"></i></span>';
+          rowStyle = 'bg-gradient-to-r from-amber-700/10 to-slate-900/70 border-amber-700/40';
+        } else {
+          rankBadge = `<span class="w-7 h-7 rounded-xl bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-xs border border-slate-700">${rank}</span>`;
+        }
+
+        const tier = getTierInfo(item.time);
+        const isCurrentPlayer = item.name === currentPlayerName;
+
+        const row = document.createElement('div');
+        row.className = `p-3 sm:p-3.5 rounded-2xl border flex items-center justify-between transition-all ${rowStyle} ${isCurrentPlayer ? 'ring-1 ring-emerald-500' : ''}`;
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+            ${rankBadge}
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-white">${escapeHtml(item.name)}</span>
+                ${isCurrentPlayer ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">나</span>' : ''}
+              </div>
+              <span class="text-[11px] text-slate-400">${tier.badge} • ${item.date}</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="font-black text-base text-emerald-400">${item.time}</span>
+            <span class="text-xs text-slate-400 font-medium ml-0.5">ms</span>
+          </div>
+        `;
+        rankingListContainer.appendChild(row);
+      });
+    }
+
+    function escapeHtml(string) {
+      return String(string)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function openRankingModal() {
+      renderLeaderboard();
+      rankingModal.classList.remove('hidden');
+      setTimeout(() => {
+        rankingModal.classList.remove('opacity-0');
+      }, 10);
+    }
+
+    function closeRankingModal() {
+      rankingModal.classList.add('opacity-0');
+      setTimeout(() => {
+        rankingModal.classList.add('hidden');
+      }, 200);
+    }
+
+    navRankingBtn.addEventListener('click', openRankingModal);
+    quickRankView.addEventListener('click', openRankingModal);
+    closeRankingBtn.addEventListener('click', closeRankingModal);
+    closeRankingBottomBtn.addEventListener('click', closeRankingModal);
+
+    // Modal background dismiss
+    rankingModal.addEventListener('click', (e) => {
+      if (e.target === rankingModal) closeRankingModal();
+    });
+
+    openResetModalBtn.addEventListener('click', () => {
+      adminPasswordInput.value = '';
+      resetErrorMsg.classList.add('hidden');
+      resetPasswordModal.classList.remove('hidden');
+      setTimeout(() => {
+        resetPasswordModal.classList.remove('opacity-0');
+        adminPasswordInput.focus();
+      }, 10);
+    });
+
+    function closeResetModal() {
+      resetPasswordModal.classList.add('opacity-0');
+      setTimeout(() => {
+        resetPasswordModal.classList.add('hidden');
+      }, 200);
+    }
+
+    cancelResetBtn.addEventListener('click', closeResetModal);
+    resetPasswordModal.addEventListener('click', (e) => {
+      if (e.target === resetPasswordModal) closeResetModal();
+    });
+
+    confirmResetBtn.addEventListener('click', () => {
+      const enteredPass = adminPasswordInput.value.trim();
+      if (enteredPass === ADMIN_PASSWORD) {
+        // Password matches! Reset rankings
+        leaderboard = [];
+        updateRankerCountDisplay();
+        renderLeaderboard();
+        closeResetModal();
+        showToast('랭킹 목록이 성공적으로 초기화되었습니다.', 'success');
+      } else {
+        resetErrorMsg.classList.remove('hidden');
+        playSound('early');
+      }
+    });
+
+    adminPasswordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        confirmResetBtn.click();
+      }
+    });
+
+    startGameBtn.addEventListener('click', () => {
+      const name = playerNameInput.value.trim();
+      if (!name) {
+        nameValidationMsg.classList.remove('hidden');
+        playerNameInput.focus();
+        return;
+      }
+      nameValidationMsg.classList.add('hidden');
+      currentPlayerName = name;
+      activePlayerName.innerText = name;
+      attemptCount = 0;
+      attemptCountEl.innerText = attemptCount;
+
+      initAudio();
+      playSound('click');
+
+      welcomeScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+
+      // Start first round
+      startRound();
+    });
+
+    playerNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        startGameBtn.click();
+      }
+    });
+
+    exitGameBtn.addEventListener('click', () => {
+      clearTimeout(waitTimer);
+      currentState = GameState.IDLE;
+      gameScreen.classList.add('hidden');
+      welcomeScreen.classList.remove('hidden');
+      updateRankerCountDisplay();
+    });
+
+    // Initial setup
+    updateRankerCountDisplay();
+  </script>
+</body>
+</html>
