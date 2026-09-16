@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>파일 & 폴더 마스터</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tone.js for Native Audio Effects -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <!-- Phosphor Icons for Desktop UI Elements -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Canvas Confetti for Achievements -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
+    
+    * {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Permit text selection and direct clicks for interactive inputs */
+    input, textarea {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+
+    [draggable="true"] {
+      -webkit-user-drag: element !important;
+      cursor: grab;
+    }
+
+    [draggable="true"]:active {
+      cursor: grabbing;
+    }
+    
+    /* Enforce bold/extra-bold rendering for standard content text */
+    p, span, label, input {
+      font-weight: 700;
+    }
+
+    .drop-zone {
+      cursor: pointer;
+    }
+
+    .drop-zone.drag-over, .drop-zone.ready-target {
+      background-color: #dbeafe !important;
+      border-color: #2563eb !important;
+      transform: scale(1.02);
+    }
+    .shake {
+      animation: shake 0.35s ease-in-out;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .pop-in {
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .badge-glow {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+    }
+    .secret-paper {
+      background: #fffdf5;
+      background-image: radial-gradient(#cbd5e1 1px, transparent 0);
+      background-size: 16px 16px;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800 min-h-screen flex items-center justify-center p-3 sm:p-6 antialiased font-bold">
+
+  <main id="app-window" class="w-full max-w-5xl h-[820px] max-h-[96vh] bg-slate-100 rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-slate-700">
+    
+    <!-- Top OS Style Title Bar -->
+    <header class="bg-slate-800 text-white px-5 py-3 flex flex-wrap items-center justify-between border-b border-slate-700 shrink-0 gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="flex space-x-2">
+          <span class="w-3.5 h-3.5 rounded-full bg-rose-500 inline-block"></span>
+          <span class="w-3.5 h-3.5 rounded-full bg-amber-400 inline-block"></span>
+          <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block"></span>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
+          <i class="ph-bold ph-hard-drives text-blue-400"></i>
+          <span>파일 & 폴더 퀘스트</span>
+          <span class="text-xs font-black bg-blue-500/30 text-blue-300 border border-blue-400/40 px-2 py-0.5 rounded-full ml-1 uppercase">버전 1.1</span>
+        </h1>
+      </div>
+
+      <!-- XP Level & Stage Pill Indicators -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-700 text-xs sm:text-sm">
+          <i class="ph-fill ph-trophy text-amber-400 text-base"></i>
+          <span class="font-black text-slate-200">경험치:</span>
+          <span id="xp-display" class="font-black text-amber-400">0 XP</span>
+        </div>
+
+        <div class="flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-700">
+          <span class="text-xs sm:text-sm font-black text-slate-300 uppercase tracking-wider">미션 단계</span>
+          <span id="stage-badge" class="text-base sm:text-lg font-black text-blue-400">1 / 10</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- XP Progress Bar -->
+    <div class="w-full bg-slate-700 h-1.5 shrink-0 overflow-hidden">
+      <div id="xp-bar" class="bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 h-full transition-all duration-500 w-0"></div>
+    </div>
+
+    <section class="bg-white px-6 py-4 border-b border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+      <div>
+        <div class="flex items-center gap-2">
+          <span id="stage-number-tag" class="bg-blue-100 text-blue-800 font-black text-sm px-2.5 py-0.5 rounded-md">STEP 1</span>
+          <h2 id="mission-heading" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">확장자 구분하기</h2>
+        </div>
+        <p id="mission-instruction" class="text-base sm:text-lg text-slate-800 font-black mt-1">파일을 종류에 맞는 상자에 끌어다 놓으세요.</p>
+      </div>
+
+      <!-- Interactive Quick Hint -->
+      <div id="quick-hint" class="bg-amber-50 border-2 border-amber-300 text-amber-950 px-4 py-2 rounded-xl text-sm sm:text-base font-black flex items-center gap-2 self-start md:self-auto">
+        <i class="ph-bold ph-lightbulb text-amber-600 text-xl"></i>
+        <span id="hint-text" class="font-black text-amber-950">.png는 그림, .mp3는 음악, .txt는 문서입니다.</span>
+      </div>
+    </section>
+
+    <section id="workspace" class="flex-1 bg-slate-100 p-4 sm:p-6 overflow-y-auto relative flex flex-col min-h-0">
+      <!-- Injected Stage Content Appears Here Dynamically -->
+    </section>
+
+    <footer class="bg-white border-t border-slate-300 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+      <div class="flex items-center gap-3">
+        <div id="status-icon" class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-200 text-slate-700 text-2xl font-black">
+          <i class="ph-bold ph-arrows-clockwise"></i>
+        </div>
+        <div>
+          <p id="feedback-message" class="text-lg sm:text-xl font-black text-slate-800">지시사항대로 행동해 보세요.</p>
+          <p id="sub-feedback" class="text-xs sm:text-sm font-black text-slate-500">마우스나 터치로 직접 조작할 수 있습니다.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <button id="reset-stage-btn" onclick="resetCurrentStage()" class="px-4 py-2.5 rounded-xl border-2 border-slate-400 hover:border-slate-500 text-slate-800 font-black text-base flex items-center gap-1.5 transition-all">
+          <i class="ph-bold ph-arrow-counter-clockwise font-black"></i>
+          <span class="font-black">다시 시도</span>
+        </button>
+
+        <button id="next-stage-btn" onclick="goToNextStage()" class="hidden px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-lg flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all pop-in">
+          <span class="font-black">다음 단계</span>
+          <i class="ph-bold ph-arrow-right font-black"></i>
+        </button>
+      </div>
+    </footer>
+  </main>
+
+  <div id="modal-container" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 pop-in">
+      <div class="flex items-center gap-3 mb-3 text-blue-600">
+        <i id="modal-icon" class="ph-bold ph-folder-plus text-3xl"></i>
+        <h3 id="modal-title" class="text-2xl font-extrabold text-slate-900">새 폴더 만들기</h3>
+      </div>
+      <p id="modal-prompt" class="text-base font-bold text-slate-600 mb-2">폴더 이름을 입력하세요.</p>
+      
+      <input type="text" id="modal-input" class="w-full text-xl font-bold px-4 py-3 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all text-center" autocomplete="off" />
+
+      <!-- Inline Modal Error Message -->
+      <p id="modal-error-msg" class="text-sm font-extrabold text-rose-600 mt-2 min-h-[20px] text-center hidden"></p>
+
+      <div class="flex items-center justify-end gap-3 mt-4">
+        <button id="modal-cancel-btn" onclick="closeModal()" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all">취소</button>
+        <button id="modal-confirm-btn" class="px-6 py-2.5 rounded-xl font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secret Document Reader Modal -->
+  <div id="secret-doc-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border-4 border-amber-500 pop-in secret-paper relative overflow-hidden">
+      <div class="absolute -right-10 -top-6 rotate-12 border-4 border-red-600 text-red-600 px-8 py-1.5 font-black text-2xl tracking-widest uppercase opacity-85 pointer-events-none">
+        TOP SECRET
+      </div>
+
+      <div class="flex items-center gap-3 border-b-2 border-slate-300 pb-3 mb-4">
+        <i class="ph-bold ph-lock-key-open text-amber-600 text-3xl"></i>
+        <div>
+          <h3 class="text-2xl font-black text-slate-900">비밀문서.txt 열람</h3>
+          <span class="text-xs font-bold text-slate-500">기밀 등급: 1급 요원 열람 가능</span>
+        </div>
+      </div>
+
+      <div class="bg-amber-50/80 border-2 border-amber-200 rounded-xl p-5 mb-5 text-slate-800 space-y-3">
+        <p class="text-lg font-black text-blue-700 flex items-center gap-2">
+          <span>🕵️ 요원 확인 완료! 진짜 비밀 내용:</span>
+        </p>
+        <p class="text-base font-extrabold leading-relaxed text-slate-700">
+          "파일과 폴더를 완벽히 다루는 사람은 컴퓨터 세상의 <strong>최상위 마스터</strong>가 될 수 있다!"
+        </p>
+        <div class="bg-white p-3 rounded-lg border border-amber-300 text-sm font-bold text-amber-900">
+          💡 <strong>비밀 팁:</strong> 파일 확장자(.png, .mp3, .txt)는 파일의 진짜 정체를 알려주는 주민번호와 같습니다.
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-extrabold text-emerald-600 flex items-center gap-1">
+          <i class="ph-fill ph-check-circle"></i> 비밀 파일 열람 미션 완료 (+100 XP)
+        </span>
+        <button onclick="closeSecretModal()" class="px-6 py-2.5 rounded-xl font-black text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all">
+          닫기 & 다음으로
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Master Certificate Modal (Final Stage) -->
+  <div id="cert-modal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border-4 border-amber-400 pop-in text-center relative overflow-hidden">
+      <div class="absolute -top-12 -left-12 w-32 h-32 bg-amber-200/50 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="absolute -bottom-12 -right-12 w-32 h-32 bg-blue-200/50 rounded-full blur-2xl pointer-events-none"></div>
+
+      <i class="ph-fill ph-medal text-7xl text-amber-500 mx-auto mb-2 inline-block"></i>
+      <h2 class="text-3xl sm:text-4xl font-black text-slate-900">컴퓨터 마스터 수료증</h2>
+      <p class="text-slate-500 font-extrabold text-base mt-1">파일 & 폴더 10개 퀘스트 올클리어!</p>
+
+      <div class="my-6 p-5 bg-amber-50 rounded-2xl border-2 border-amber-200 text-left space-y-2">
+        <div class="flex justify-between text-slate-700 font-bold text-sm sm:text-base border-b border-amber-200 pb-2">
+          <span>획득 칭호</span>
+          <span class="font-black text-blue-600">디지털 정리의 제왕 👑</span>
+        </div>
+        <div class="flex justify-between text-slate-700 font-bold text-sm sm:text-base border-b border-amber-200 pb-2">
+          <span>최종 경험치</span>
+          <span class="font-black text-emerald-600">1000 / 1000 XP</span>
+        </div>
+        <div class="flex justify-between text-slate-700 font-bold text-sm sm:text-base pt-1">
+          <span>획득 뱃지</span>
+          <span class="font-black text-amber-700">확장자 박사 / 비밀요원 / 파일 관리자</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-center gap-3">
+        <button onclick="restartAllQuests()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-lg rounded-xl shadow-lg transition-all flex items-center gap-2">
+          <i class="ph-bold ph-arrow-counter-clockwise"></i>
+          <span>처음부터 다시 도전</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* Tone.js Web Audio Synthesizer */
+    let audioStarted = false;
+    let synth, chimeSynth;
+
+    function initAudio() {
+      if (audioStarted) return;
+      try {
+        Tone.start();
+        synth = new Tone.Synth({
+          oscillator: { type: "triangle" },
+          envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.1 }
+        }).toDestination();
+        
+        chimeSynth = new Tone.PolySynth(Tone.Synth, {
+          envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.4 }
+        }).toDestination();
+        audioStarted = true;
+      } catch (err) {
+        console.warn("Audio init deferred", err);
+      }
+    }
+
+    function playTone(type) {
+      initAudio();
+      if (!audioStarted) return;
+      try {
+        if (type === 'success') {
+          chimeSynth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n");
+        } else if (type === 'fanfare') {
+          chimeSynth.triggerAttackRelease(["C5", "G5", "C6", "E6"], "4n");
+        } else if (type === 'click') {
+          synth.triggerAttackRelease("A4", "32n");
+        } else if (type === 'error') {
+          synth.triggerAttackRelease("D3", "16n");
+        } else if (type === 'drop') {
+          synth.triggerAttackRelease("F4", "16n");
+        }
+      } catch (e) {
+        // Silently skip if user has not interacted yet
+      }
+    }
+  </script>
+
+  <script>
+    let currentStage = 1;
+    const totalStages = 10;
+    let totalXp = 0;
+    let stageCompleted = {};
+
+    function addXp(amount) {
+      totalXp = Math.min(1000, totalXp + amount);
+      document.getElementById('xp-display').innerText = `${totalXp} XP`;
+      document.getElementById('xp-bar').style.width = `${(totalXp / 1000) * 100}%`;
+    }
+
+    function fireConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 70,
+          spread: 60,
+          origin: { y: 0.7 }
+        });
+      }
+    }
+
+    // Stage descriptions & objectives
+    const stageMetadata = {
+      1: {
+        title: "파일 확장자 구분하기",
+        instruction: "파일을 종류에 맞는 상자에 끌어다 놓으세요.",
+        hint: ".png는 그림, .mp3는 음악, .txt는 문서입니다.",
+        tag: "STEP 1"
+      },
+      2: {
+        title: "새 폴더 만들기",
+        instruction: "[+ 새 폴더] 버튼을 누르고 이름을 '학교'로 지으세요.",
+        hint: "버튼을 누르고 입력창에 '학교'를 입력하세요.",
+        tag: "STEP 2"
+      },
+      3: {
+        title: "폴더 이름 바꾸기",
+        instruction: "'새 폴더'를 클릭하여 이름을 '여행'으로 변경하세요.",
+        hint: "폴더를 클릭하면 이름을 고칠 수 있습니다.",
+        tag: "STEP 3"
+      },
+      4: {
+        title: "파일 이동시키기",
+        instruction: "사진 파일 2개를 '사진폴더' 안으로 끌어다 넣으세요.",
+        hint: "파일을 마우스나 터치로 끌어 폴더 위에 놓으세요.",
+        tag: "STEP 4"
+      },
+      5: {
+        title: "파일 복사하기 (사본 생성)",
+        instruction: "[복사본 만들기] 버튼을 눌러 원본을 유지한 채 복제하세요.",
+        hint: "이동과 달리 원본 파일이 그대로 남아있습니다.",
+        tag: "STEP 5"
+      },
+      6: {
+        title: "여러 파일 한 번에 묶어 이동",
+        instruction: "파일 3개를 모두 클릭해 선택한 뒤 보관함으로 옮기세요.",
+        hint: "파일 3개를 각각 클릭하여 파란색으로 선택하세요.",
+        tag: "STEP 6"
+      },
+      7: {
+        title: "하위 폴더 탐색 (경로 찾아가기)",
+        instruction: "목표 경로인 [학교 > 동아리 > 발표] 폴더까지 찾아 들어가세요!",
+        hint: "엉뚱한 폴더로 들어갔다면 [← 뒤로] 버튼이나 상단 경로를 클릭하세요.",
+        tag: "STEP 7"
+      },
+      8: {
+        title: "파일 검색하고 비밀문서 열람",
+        instruction: "검색창에 '비밀'을 직접 입력해야 숨겨진 비밀문서가 나타납니다!",
+        hint: "수많은 파일 속에서 검색창에 '비밀'을 타이핑해 보세요.",
+        tag: "STEP 8"
+      },
+      9: {
+        title: "파일 지우기 (휴지통 버리기)",
+        instruction: "필요 없는 '임시.txt'를 휴지통으로 끌어다 버리세요.",
+        hint: "중요한 '가족사진.png'는 지우지 마세요.",
+        tag: "STEP 9"
+      },
+      10: {
+        title: "휴지통 복원 & 폴더 삭제",
+        instruction: "휴지통에서 파일을 [복원]하고, 빈 폴더의 [X]를 눌러 지우세요.",
+        hint: "실수로 지운 파일은 되살리고 빈 폴더는 정리합니다.",
+        tag: "STEP 10"
+      }
+    };
+
+    // Stage runtime state
+    let stageState = {};
+  </script>
+
+  <script>
+    function setSuccessFeedback(msg = "정답입니다! 완벽하게 수행했습니다.") {
+      playTone('success');
+      fireConfetti();
+      
+      if (!stageCompleted[currentStage]) {
+        stageCompleted[currentStage] = true;
+        addXp(100);
+      }
+
+      const statusIcon = document.getElementById('status-icon');
+      const feedbackMsg = document.getElementById('feedback-message');
+      const subFeedback = document.getElementById('sub-feedback');
+      const nextBtn = document.getElementById('next-stage-btn');
+
+      statusIcon.className = "w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500 text-white text-2xl font-bold";
+      statusIcon.innerHTML = '<i class="ph-bold ph-check"></i>';
+      feedbackMsg.className = "text-lg sm:text-xl font-extrabold text-emerald-600";
+      feedbackMsg.innerText = msg;
+      subFeedback.innerText = "우측의 '다음 단계' 버튼을 눌러 계속 진행하세요 (+100 XP 획득!)";
+
+      nextBtn.classList.remove('hidden');
+    }
+
+    function setErrorFeedback(msg = "조건이 맞지 않습니다. 다시 시도해 보세요.") {
+      playTone('error');
+      const statusIcon = document.getElementById('status-icon');
+      const feedbackMsg = document.getElementById('feedback-message');
+      const subFeedback = document.getElementById('sub-feedback');
+
+      statusIcon.className = "w-10 h-10 rounded-full flex items-center justify-center bg-rose-500 text-white text-2xl font-bold shake";
+      statusIcon.innerHTML = '<i class="ph-bold ph-warning"></i>';
+      feedbackMsg.className = "text-lg sm:text-xl font-extrabold text-rose-600";
+      feedbackMsg.innerText = msg;
+      subFeedback.innerText = "지시사항과 힌트를 다시 읽어보세요.";
+
+      setTimeout(() => {
+        statusIcon.classList.remove('shake');
+      }, 400);
+    }
+
+    function setInfoFeedback(msg = "지시사항대로 행동해 보세요.", sub = "마우스나 터치로 직접 조작할 수 있습니다.") {
+      const statusIcon = document.getElementById('status-icon');
+      const feedbackMsg = document.getElementById('feedback-message');
+      const subFeedback = document.getElementById('sub-feedback');
+      const nextBtn = document.getElementById('next-stage-btn');
+
+      statusIcon.className = "w-10 h-10 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-2xl font-bold";
+      statusIcon.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i>';
+      feedbackMsg.className = "text-lg sm:text-xl font-extrabold text-slate-700";
+      feedbackMsg.innerText = msg;
+      subFeedback.innerText = sub;
+      nextBtn.classList.add('hidden');
+    }
+
+    let modalCallback = null;
+
+    function openModal({ title, prompt, icon, placeholder, onConfirm }) {
+      playTone('click');
+      const modal = document.getElementById('modal-container');
+      const titleEl = document.getElementById('modal-title');
+      const promptEl = document.getElementById('modal-prompt');
+      const iconEl = document.getElementById('modal-icon');
+      const inputEl = document.getElementById('modal-input');
+      const errorEl = document.getElementById('modal-error-msg');
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+
+      titleEl.innerText = title;
+      promptEl.innerText = prompt;
+      iconEl.className = `ph-bold ${icon} text-3xl`;
+      inputEl.value = '';
+      inputEl.placeholder = placeholder || '';
+      inputEl.classList.remove('border-rose-500', 'shake');
+      errorEl.innerText = '';
+      errorEl.classList.add('hidden');
+      modalCallback = onConfirm;
+
+      modal.classList.remove('hidden');
+      setTimeout(() => inputEl.focus(), 50);
+
+      confirmBtn.onclick = () => {
+        const value = inputEl.value.trim();
+        if (modalCallback) {
+          modalCallback(value);
+        }
+      };
+
+      inputEl.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          confirmBtn.click();
+        } else if (e.key === 'Escape') {
+          closeModal();
+        }
+      };
+    }
+
+    function showModalError(msg) {
+      playTone('error');
+      const errorEl = document.getElementById('modal-error-msg');
+      const inputEl = document.getElementById('modal-input');
+      errorEl.innerText = msg;
+      errorEl.classList.remove('hidden');
+      inputEl.classList.add('border-rose-500', 'shake');
+      inputEl.focus();
+      inputEl.select();
+      setTimeout(() => {
+        inputEl.classList.remove('shake');
+      }, 400);
+    }
+
+    function closeModal() {
+      playTone('click');
+      document.getElementById('modal-container').classList.add('hidden');
+      modalCallback = null;
+    }
+
+    function openSecretModal() {
+      playTone('fanfare');
+      fireConfetti();
+      document.getElementById('secret-doc-modal').classList.remove('hidden');
+      setSuccessFeedback("비밀문서를 발견하고 극비 내용을 열람했습니다! 🎉");
+    }
+
+    function closeSecretModal() {
+      playTone('click');
+      document.getElementById('secret-doc-modal').classList.add('hidden');
+    }
+
+    function showCertificate() {
+      playTone('fanfare');
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+      }
+      document.getElementById('cert-modal').classList.remove('hidden');
+    }
+
+    function restartAllQuests() {
+      document.getElementById('cert-modal').classList.add('hidden');
+      currentStage = 1;
+      totalXp = 0;
+      stageCompleted = {};
+      document.getElementById('xp-display').innerText = `0 XP`;
+      document.getElementById('xp-bar').style.width = `0%`;
+      renderStage(1);
+    }
+  </script>
+
+  <script>
+    let draggedElement = null;
+    let selectedElement = null;
+
+    function selectItemForMove(element) {
+      // Toggle selection if clicking the same item
+      if (selectedElement === element) {
+        selectedElement.classList.remove('ring-4', 'ring-blue-600', 'scale-105');
+        selectedElement = null;
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('ready-target'));
+        setInfoFeedback("선택을 해제했습니다. 파일을 드래그하거나 다시 클릭하세요.");
+        return;
+      }
+
+      // Deselect previously selected item
+      if (selectedElement) {
+        selectedElement.classList.remove('ring-4', 'ring-blue-600', 'scale-105');
+      }
+
+      selectedElement = element;
+      element.classList.add('ring-4', 'ring-blue-600', 'scale-105');
+      playTone('click');
+      document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('ready-target'));
+      setInfoFeedback("파일이 선택되었습니다! 넣을 상자나 폴더를 클릭하세요.", "마우스로 끌어다 놓아도 됩니다.");
+    }
+
+    function clearMoveSelection() {
+      if (selectedElement) {
+        selectedElement.classList.remove('ring-4', 'ring-blue-600', 'scale-105');
+        selectedElement = null;
+      }
+      document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('ready-target'));
+    }
+
+    function makeDraggable(element) {
+      element.setAttribute('draggable', 'true');
+      element.classList.add('cursor-pointer', 'transition-all');
+
+      // 1. Click-to-Select interaction (Solves "Clicking doesn't work")
+      element.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectItemForMove(element);
+      });
+
+      // 2. HTML5 Drag and Drop
+      element.addEventListener('dragstart', (e) => {
+        initAudio();
+        clearMoveSelection();
+        draggedElement = element;
+        element.classList.add('opacity-40');
+        e.dataTransfer.setData('text/plain', element.id || 'item');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      element.addEventListener('dragend', () => {
+        element.classList.remove('opacity-40');
+        draggedElement = null;
+      });
+
+      // 3. Touch drag fallback simulation
+      let touchStartX = 0;
+      let touchStartY = 0;
+      element.addEventListener('touchstart', (e) => {
+        initAudio();
+        draggedElement = element;
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+      }, { passive: true });
+
+      element.addEventListener('touchend', (e) => {
+        if (!draggedElement) return;
+        const touch = e.changedTouches[0];
+        const targetDrop = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (targetDrop) {
+          const validZone = targetDrop.closest('.drop-zone');
+          if (validZone && validZone.onCustomDrop) {
+            validZone.onCustomDrop(draggedElement);
+          }
+        }
+        draggedElement = null;
+      });
+    }
+
+    function makeDropZone(zoneElement, onValidDrop) {
+      zoneElement.classList.add('drop-zone', 'cursor-pointer');
+      zoneElement.onCustomDrop = onValidDrop;
+
+      // Click to drop when an item is selected
+      zoneElement.addEventListener('click', () => {
+        if (selectedElement) {
+          const target = selectedElement;
+          clearMoveSelection();
+          playTone('drop');
+          onValidDrop(target);
+        }
+      });
+
+      zoneElement.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        zoneElement.classList.add('drag-over');
+      });
+
+      zoneElement.addEventListener('dragleave', () => {
+        zoneElement.classList.remove('drag-over');
+      });
+
+      zoneElement.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zoneElement.classList.remove('drag-over');
+        clearMoveSelection();
+        if (draggedElement) {
+          playTone('drop');
+          onValidDrop(draggedElement);
+        }
+      });
+    }
+  </script>
+
+  <script>
+    function renderStage(stageNumber) {
+      const meta = stageMetadata[stageNumber];
+      document.getElementById('stage-badge').innerText = `${stageNumber} / ${totalStages}`;
+      document.getElementById('stage-number-tag').innerText = meta.tag;
+      document.getElementById('mission-heading').innerText = meta.title;
+      document.getElementById('mission-instruction').innerText = meta.instruction;
+      document.getElementById('hint-text').innerText = meta.hint;
+
+      setInfoFeedback();
+
+      const ws = document.getElementById('workspace');
+      ws.innerHTML = '';
+
+      // --- STAGE 1: 확장자 구분하기 ---
+      if (stageNumber === 1) {
+        stageState = { remaining: 3 };
+
+        ws.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div id="drop-img" data-type="img" class="h-44 rounded-2xl border-3 border-dashed border-sky-300 bg-sky-50 flex flex-col items-center justify-center p-4 transition-all">
+              <i class="ph-bold ph-image text-5xl text-sky-600 mb-2"></i>
+              <span class="text-xl font-extrabold text-sky-900">그림 파일 상자</span>
+              <span class="text-sm font-bold text-sky-600 mt-1">.png / .jpg</span>
+            </div>
+
+            <div id="drop-music" data-type="music" class="h-44 rounded-2xl border-3 border-dashed border-purple-300 bg-purple-50 flex flex-col items-center justify-center p-4 transition-all">
+              <i class="ph-bold ph-music-notes text-5xl text-purple-600 mb-2"></i>
+              <span class="text-xl font-extrabold text-purple-900">음악 파일 상자</span>
+              <span class="text-sm font-bold text-purple-600 mt-1">.mp3 / .wav</span>
+            </div>
+
+            <div id="drop-doc" data-type="doc" class="h-44 rounded-2xl border-3 border-dashed border-emerald-300 bg-emerald-50 flex flex-col items-center justify-center p-4 transition-all">
+              <i class="ph-bold ph-file-text text-5xl text-emerald-600 mb-2"></i>
+              <span class="text-xl font-extrabold text-emerald-900">문서 파일 상자</span>
+              <span class="text-sm font-bold text-emerald-600 mt-1">.txt / .hwp</span>
+            </div>
+          </div>
+
+          <div class="flex-1 flex flex-wrap items-center justify-center gap-6 p-4 bg-white/70 rounded-2xl border-2 border-slate-200">
+            <div id="file-sea" data-type="img" class="w-36 h-36 bg-white border-2 border-sky-400 rounded-2xl shadow-md flex flex-col items-center justify-center cursor-grab hover:shadow-lg transition-all">
+              <i class="ph-fill ph-file-image text-5xl text-sky-500 mb-2"></i>
+              <span class="text-lg font-black text-slate-800">바다.png</span>
+              <span class="text-xs font-bold text-slate-400">그림 파일</span>
+            </div>
+
+            <div id="file-song" data-type="music" class="w-36 h-36 bg-white border-2 border-purple-400 rounded-2xl shadow-md flex flex-col items-center justify-center cursor-grab hover:shadow-lg transition-all">
+              <i class="ph-fill ph-file-audio text-5xl text-purple-500 mb-2"></i>
+              <span class="text-lg font-black text-slate-800">동요.mp3</span>
+              <span class="text-xs font-bold text-slate-400">음악 파일</span>
+            </div>
+
+            <div id="file-diary" data-type="doc" class="w-36 h-36 bg-white border-2 border-emerald-400 rounded-2xl shadow-md flex flex-col items-center justify-center cursor-grab hover:shadow-lg transition-all">
+              <i class="ph-fill ph-file-doc text-5xl text-emerald-500 mb-2"></i>
+              <span class="text-lg font-black text-slate-800">일기.txt</span>
+              <span class="text-xs font-bold text-slate-400">텍스트 문서</span>
+            </div>
+          </div>
+        `;
+
+        const files = ws.querySelectorAll('[data-type][id^="file-"]');
+        files.forEach(f => makeDraggable(f));
+
+        const dropZones = [
+          { el: ws.querySelector('#drop-img'), expected: 'img' },
+          { el: ws.querySelector('#drop-music'), expected: 'music' },
+          { el: ws.querySelector('#drop-doc'), expected: 'doc' }
+        ];
+
+        dropZones.forEach(({ el, expected }) => {
+          makeDropZone(el, (dragged) => {
+            if (dragged.dataset.type === expected) {
+              dragged.remove();
+              stageState.remaining--;
+              if (stageState.remaining === 0) {
+                setSuccessFeedback("모든 확장자 파일을 올바르게 분류했습니다!");
+              } else {
+                setInfoFeedback(`맞았습니다! 남은 파일: ${stageState.remaining}개`);
+              }
+            } else {
+              setErrorFeedback("확장자가 맞지 않습니다. 상자의 확장자 안내를 확인하세요!");
+            }
+          });
+        });
+      }
+
+      // --- STAGE 2: 새 폴더 만들기 ---
+      else if (stageNumber === 2) {
+        ws.innerHTML = `
+          <div class="mb-6 flex items-center justify-between">
+            <button onclick="triggerCreateFolder()" class="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xl rounded-xl shadow-lg shadow-amber-500/30 flex items-center gap-2 transition-all">
+              <i class="ph-bold ph-folder-plus text-2xl font-black"></i>
+              <span class="font-black">+ 새 폴더 만들기</span>
+            </button>
+            <span class="text-base font-black text-slate-700">목표 이름: <b class="text-blue-600 font-black">학교</b></span>
+          </div>
+
+          <div id="folder-stage2-zone" class="flex-1 bg-white rounded-2xl border-3 border-dashed border-slate-300 p-8 flex flex-wrap content-start gap-6">
+            <div class="text-slate-500 text-lg font-black w-full text-center py-16" id="empty-state-2">
+              버튼을 눌러 '학교' 폴더를 만들어 보세요.
+            </div>
+          </div>
+        `;
+
+        window.triggerCreateFolder = () => {
+          openModal({
+            title: "새 폴더 만들기",
+            prompt: "새 폴더의 이름을 '학교'라고 적어주세요.",
+            icon: "ph-folder-plus",
+            placeholder: "학교",
+            onConfirm: (name) => {
+              if (name === "학교") {
+                closeModal();
+                const container = document.getElementById('folder-stage2-zone');
+                container.innerHTML = `
+                  <div class="w-40 h-40 bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-md flex flex-col items-center justify-center pop-in">
+                    <i class="ph-fill ph-folder text-6xl text-amber-500 mb-2"></i>
+                    <span class="text-xl font-black text-slate-800">학교</span>
+                    <span class="text-xs font-bold text-emerald-600 mt-1">생성 완료</span>
+                  </div>
+                `;
+                setSuccessFeedback("'학교' 폴더가 성공적으로 생성되었습니다!");
+              } else {
+                showModalError("이름이 다릅니다. '학교'라고 다시 입력해 주세요!");
+                setErrorFeedback("'학교'라고 정확히 입력해 주세요.");
+              }
+            }
+          });
+        };
+      }
+
+      // --- STAGE 3: 폴더 이름 바꾸기 ---
+      else if (stageNumber === 3) {
+        ws.innerHTML = `
+          <div class="flex-1 bg-white rounded-2xl border-2 border-slate-200 p-8 flex flex-col items-center justify-center">
+            <div onclick="triggerRenameFolder()" class="group w-48 h-48 bg-amber-50 border-3 border-dashed border-amber-400 hover:border-blue-500 hover:bg-blue-50 rounded-2xl shadow-md flex flex-col items-center justify-center cursor-pointer transition-all transform hover:scale-105">
+              <i class="ph-fill ph-folder text-7xl text-amber-500 group-hover:text-blue-500 mb-2 transition-colors"></i>
+              <span id="folder-name-3" class="text-2xl font-black text-slate-800">새 폴더</span>
+              <span class="text-sm font-extrabold text-blue-600 mt-2 bg-blue-100 px-3 py-1 rounded-full flex items-center gap-1">
+                <i class="ph-bold ph-pencil-simple"></i> 클릭하여 이름 변경
+              </span>
+            </div>
+            <p class="text-slate-500 text-lg font-bold mt-6">위 폴더를 클릭하여 이름을 <strong class="text-blue-600">'여행'</strong>으로 바꾸세요.</p>
+          </div>
+        `;
+
+        window.triggerRenameFolder = () => {
+          openModal({
+            title: "폴더 이름 바꾸기",
+            prompt: "새 이름을 '여행'으로 변경하세요.",
+            icon: "ph-pencil-simple-line",
+            placeholder: "여행",
+            onConfirm: (name) => {
+              if (name === "여행") {
+                closeModal();
+                document.getElementById('folder-name-3').innerText = "여행";
+                setSuccessFeedback("폴더 이름을 '여행'으로 올바르게 변경했습니다!");
+              } else {
+                showModalError("이름이 다릅니다. '여행'이라고 다시 입력해 주세요!");
+                setErrorFeedback("'여행'이라고 정확히 입력해 주세요.");
+              }
+            }
+          });
+        };
+      }
+
+      // --- STAGE 4: 파일 이동시키기 ---
+      else if (stageNumber === 4) {
+        stageState = { remaining: 2 };
+
+        ws.innerHTML = `
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+            <div class="bg-white rounded-2xl border-2 border-slate-200 p-6 flex flex-col">
+              <h3 class="text-xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="ph-bold ph-desktop text-blue-600"></i> 바탕화면 (이동할 사진 파일)
+              </h3>
+              <div class="flex-1 flex flex-wrap gap-4 items-center justify-center">
+                <div id="file-move-1" class="w-36 h-36 bg-white border-2 border-sky-400 rounded-2xl shadow flex flex-col items-center justify-center cursor-grab hover:shadow-md">
+                  <i class="ph-fill ph-file-image text-5xl text-sky-500 mb-2"></i>
+                  <span class="text-base font-black text-slate-800">풍경.jpg</span>
+                  <span class="text-xs font-bold text-slate-400">사진</span>
+                </div>
+                <div id="file-move-2" class="w-36 h-36 bg-white border-2 border-sky-400 rounded-2xl shadow flex flex-col items-center justify-center cursor-grab hover:shadow-md">
+                  <i class="ph-fill ph-file-image text-5xl text-sky-500 mb-2"></i>
+                  <span class="text-base font-black text-slate-800">친구.png</span>
+                  <span class="text-xs font-bold text-slate-400">사진</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="dest-photo-folder" class="bg-amber-50 rounded-2xl border-3 border-dashed border-amber-400 p-6 flex flex-col items-center justify-center transition-all">
+              <i class="ph-fill ph-folder-notch-open text-8xl text-amber-500 mb-4"></i>
+              <span class="text-2xl font-black text-amber-900">사진폴더</span>
+              <span class="text-base font-extrabold text-amber-700 mt-1">여기로 파일을 끌어다 놓으세요</span>
+              <span id="folder-count-4" class="text-sm font-bold text-slate-500 mt-3 bg-white px-3 py-1 rounded-full border border-amber-200">담긴 파일: 0 / 2</span>
+            </div>
+          </div>
+        `;
+
+        makeDraggable(ws.querySelector('#file-move-1'));
+        makeDraggable(ws.querySelector('#file-move-2'));
+
+        makeDropZone(ws.querySelector('#dest-photo-folder'), (dragged) => {
+          dragged.remove();
+          stageState.remaining--;
+          const countEl = document.getElementById('folder-count-4');
+          countEl.innerText = `담긴 파일: ${2 - stageState.remaining} / 2`;
+
+          if (stageState.remaining === 0) {
+            setSuccessFeedback("모든 사진 파일을 '사진폴더'로 옮겼습니다!");
+          } else {
+            setInfoFeedback(`1개 이동 완료! 나머지 1개도 옮겨주세요.`);
+          }
+        });
+      }
+
+      // --- STAGE 5: 파일 복사하기 (사본 생성) ---
+      else if (stageNumber === 5) {
+        stageState = { copied: false };
+
+        ws.innerHTML = `
+          <div class="flex-1 flex flex-col gap-6">
+            <div class="bg-white p-6 rounded-2xl border-2 border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="w-24 h-24 bg-blue-50 border-2 border-blue-400 rounded-xl flex flex-col items-center justify-center">
+                  <i class="ph-fill ph-file-doc text-4xl text-blue-500 mb-1"></i>
+                  <span class="text-sm font-black text-slate-900">보고서.txt</span>
+                </div>
+                <div>
+                  <h4 class="text-xl font-black text-slate-900">원본 문서 파일</h4>
+                  <p class="text-sm font-black text-slate-600">복사는 원본을 보존한 상태로 똑같은 쌍둥이 파일을 만듭니다.</p>
+                </div>
+              </div>
+
+              <button onclick="triggerCopyFile()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-lg rounded-xl shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all">
+                <i class="ph-bold ph-copy text-2xl font-black"></i>
+                <span class="font-black">복사본 만들기</span>
+              </button>
+            </div>
+
+            <div id="copy-result-area" class="flex-1 bg-white rounded-2xl border-3 border-dashed border-slate-300 p-6 flex flex-wrap gap-6 items-center justify-center">
+              <div class="text-slate-500 font-black text-lg" id="copy-placeholder">
+                상단의 [복사본 만들기] 버튼을 눌러보세요.
+              </div>
+            </div>
+          </div>
+        `;
+
+        window.triggerCopyFile = () => {
+          if (stageState.copied) return;
+          stageState.copied = true;
+          const container = document.getElementById('copy-result-area');
+          container.innerHTML = `
+            <div class="w-36 h-36 bg-blue-50 border-2 border-blue-400 rounded-2xl shadow flex flex-col items-center justify-center pop-in">
+              <i class="ph-fill ph-file-doc text-5xl text-blue-500 mb-2"></i>
+              <span class="text-base font-black text-slate-800">보고서.txt</span>
+              <span class="text-xs font-bold text-blue-600">[원본 유지]</span>
+            </div>
+
+            <div class="text-3xl text-slate-400 font-bold pop-in">+</div>
+
+            <div class="w-40 h-40 bg-emerald-50 border-2 border-emerald-500 rounded-2xl shadow-lg flex flex-col items-center justify-center pop-in">
+              <i class="ph-fill ph-file-doc text-5xl text-emerald-500 mb-2"></i>
+              <span class="text-sm font-black text-slate-800 text-center px-2">보고서 - 복사본.txt</span>
+              <span class="text-xs font-extrabold text-emerald-600 mt-1">[새로 복제됨]</span>
+            </div>
+          `;
+          setSuccessFeedback("원본을 그대로 두고 '복사본' 파일을 성공적으로 만들었습니다!");
+        };
+      }
+
+      // --- STAGE 6: 다중 선택 및 일괄 이동 ---
+      else if (stageNumber === 6) {
+        stageState = { selected: new Set() };
+
+        ws.innerHTML = `
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+            <div class="bg-white rounded-2xl border-2 border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <h3 class="text-xl font-black text-slate-900 mb-2 flex items-center gap-2">
+                  <i class="ph-bold ph-cursor-click text-blue-600 font-black"></i> 클릭하여 모두 선택하세요
+                </h3>
+                <p class="text-sm font-black text-slate-600 mb-4">각 파일을 1번씩 클릭하면 파란색으로 선택됩니다.</p>
+                
+                <div class="flex flex-wrap gap-3">
+                  <div onclick="toggleMultiSelect(this, 'fileA')" class="multi-item cursor-pointer w-32 h-32 bg-slate-50 border-2 border-slate-300 rounded-xl flex flex-col items-center justify-center transition-all">
+                    <i class="ph-fill ph-file text-4xl text-slate-500 mb-1"></i>
+                    <span class="text-sm font-black text-slate-900">숙제1.txt</span>
+                  </div>
+                  <div onclick="toggleMultiSelect(this, 'fileB')" class="multi-item cursor-pointer w-32 h-32 bg-slate-50 border-2 border-slate-300 rounded-xl flex flex-col items-center justify-center transition-all">
+                    <i class="ph-fill ph-file text-4xl text-slate-500 mb-1"></i>
+                    <span class="text-sm font-black text-slate-900">숙제2.txt</span>
+                  </div>
+                  <div onclick="toggleMultiSelect(this, 'fileC')" class="multi-item cursor-pointer w-32 h-32 bg-slate-50 border-2 border-slate-300 rounded-xl flex flex-col items-center justify-center transition-all">
+                    <i class="ph-fill ph-file text-4xl text-slate-500 mb-1"></i>
+                    <span class="text-sm font-black text-slate-900">숙제3.txt</span>
+                  </div>
+                </div>
+              </div>
+
+              <button onclick="triggerBatchMove()" class="mt-4 w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-lg rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                <i class="ph-bold ph-package font-black"></i>
+                <span id="batch-btn-text" class="font-black">선택한 파일 보관함으로 한 번에 이동 (0 / 3)</span>
+              </button>
+            </div>
+
+            <div id="batch-target-box" class="bg-amber-50 rounded-2xl border-3 border-dashed border-amber-400 p-6 flex flex-col items-center justify-center">
+              <i class="ph-fill ph-archive-box text-8xl text-amber-500 mb-4"></i>
+              <span class="text-2xl font-black text-amber-900">제출 보관함</span>
+              <span id="batch-status-text" class="text-base font-black text-slate-600 mt-2">비어 있음</span>
+            </div>
+          </div>
+        `;
+
+        window.toggleMultiSelect = (el, id) => {
+          playTone('click');
+          if (stageState.selected.has(id)) {
+            stageState.selected.delete(id);
+            el.classList.remove('border-blue-600', 'bg-blue-100', 'scale-105');
+            el.classList.add('border-slate-300', 'bg-slate-50');
+          } else {
+            stageState.selected.add(id);
+            el.classList.remove('border-slate-300', 'bg-slate-50');
+            el.classList.add('border-blue-600', 'bg-blue-100', 'scale-105');
+          }
+          document.getElementById('batch-btn-text').innerText = `선택한 파일 보관함으로 한 번에 이동 (${stageState.selected.size} / 3)`;
+        };
+
+        window.triggerBatchMove = () => {
+          if (stageState.selected.size === 3) {
+            document.querySelectorAll('.multi-item').forEach(e => e.remove());
+            document.getElementById('batch-status-text').className = "text-xl font-black text-emerald-600 mt-2";
+            document.getElementById('batch-status-text').innerText = "파일 3개 일괄 이동 완료!";
+            document.getElementById('batch-btn-text').innerText = "이동 완료";
+            setSuccessFeedback("파일 3개를 한 번에 선택하여 모두 옮겼습니다!");
+          } else {
+            setErrorFeedback(`3개의 파일을 모두 선택해야 합니다! (현재 ${stageState.selected.size}개 선택됨)`);
+          }
+        };
+      }
+
+      // --- STAGE 7: 하위 폴더 들어가기 (다단계 경로 탐색) ---
+      else if (stageNumber === 7) {
+        // Multi-level Directory Structure: Goal is root -> 학교 -> 동아리 -> 발표
+        const fileSystemTree = {
+          'root': {
+            name: '내 컴퓨터',
+            parent: null,
+            folders: [
+              { id: 'school', name: '학교', hint: '정답 경로' },
+              { id: 'photos', name: '개인사진', hint: '엉뚱한 경로' },
+              { id: 'games', name: '게임모음', hint: '엉뚱한 경로' }
+            ],
+            files: []
+          },
+          'photos': {
+            name: '개인사진',
+            parent: 'root',
+            folders: [],
+            files: [{ name: '바다.jpg', icon: 'ph-file-image', color: 'text-sky-500' }]
+          },
+          'games': {
+            name: '게임모음',
+            parent: 'root',
+            folders: [],
+            files: [{ name: '마인크래프트.exe', icon: 'ph-file-code', color: 'text-indigo-500' }]
+          },
+          'school': {
+            name: '학교',
+            parent: 'root',
+            folders: [
+              { id: 'club', name: '동아리', hint: '정답 경로' },
+              { id: 'lunch', name: '급식정보', hint: '엉뚱한 경로' }
+            ],
+            files: [{ name: '학사일정.hwp', icon: 'ph-file-doc', color: 'text-emerald-500' }]
+          },
+          'lunch': {
+            name: '급식정보',
+            parent: 'school',
+            folders: [],
+            files: [{ name: '9월식단표.pdf', icon: 'ph-file-text', color: 'text-rose-500' }]
+          },
+          'club': {
+            name: '동아리',
+            parent: 'school',
+            folders: [
+              { id: 'presentation', name: '발표', hint: '최종 목표!' },
+              { id: 'money', name: '회비내역', hint: '엉뚱한 경로' }
+            ],
+            files: []
+          },
+          'money': {
+            name: '회비내역',
+            parent: 'club',
+            folders: [],
+            files: [{ name: '영수증모음.xlsx', icon: 'ph-file-text', color: 'text-emerald-600' }]
+          },
+          'presentation': {
+            name: '발표',
+            parent: 'club',
+            folders: [],
+            files: [{ name: '최종발표_보물.key', isGoal: true, icon: 'ph-file-star', color: 'text-amber-500' }]
+          }
+        };
+
+        stageState = { currentPath: 'root', reachedGoal: false };
+
+        ws.innerHTML = `
+          <div class="flex-1 min-h-[460px] bg-white rounded-2xl border-2 border-slate-200 overflow-hidden flex flex-col shadow-sm">
+            <!-- Navigation Toolbar: Back button + Breadcrumb Address Bar -->
+            <div class="bg-slate-200 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-300 text-slate-800 font-black shrink-0">
+              <div class="flex items-center gap-2">
+                <button id="folder-back-btn" onclick="goBackFolder()" class="px-3 py-1.5 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border-2 border-slate-300 rounded-lg text-sm font-black flex items-center gap-1 shadow-sm transition-all">
+                  <i class="ph-bold ph-arrow-left text-base"></i>
+                  <span>뒤로</span>
+                </button>
+                <button id="folder-up-btn" onclick="goUpFolder()" class="px-3 py-1.5 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border-2 border-slate-300 rounded-lg text-sm font-black flex items-center gap-1 shadow-sm transition-all">
+                  <i class="ph-bold ph-arrow-up text-base"></i>
+                  <span>상위 폴더</span>
+                </button>
+              </div>
+
+              <!-- Interactive Clickable Breadcrumb -->
+              <div class="flex-1 flex items-center gap-1.5 bg-white px-3.5 py-1.5 rounded-lg border-2 border-slate-300 text-sm overflow-x-auto min-w-[200px]" id="breadcrumbs-container">
+                <!-- Injected dynamically -->
+              </div>
+
+              <!-- Mission Target Indicator -->
+              <div class="bg-blue-50 border border-blue-300 text-blue-900 px-3 py-1 rounded-lg text-xs sm:text-sm font-black flex items-center gap-1">
+                <i class="ph-bold ph-crosshair text-blue-600"></i>
+                <span>목표 경로: 학교 > 동아리 > 발표</span>
+              </div>
+            </div>
+
+            <!-- Directory Items Viewport -->
+            <div id="file-explorer-content" class="flex-1 p-6 flex flex-wrap gap-5 items-start content-start overflow-y-auto">
+              <!-- Rendered items go here -->
+            </div>
+          </div>
+        `;
+
+        function updateExplorerView() {
+          const current = fileSystemTree[stageState.currentPath];
+          const backBtn = document.getElementById('folder-back-btn');
+          const upBtn = document.getElementById('folder-up-btn');
+          const breadcrumbsEl = document.getElementById('breadcrumbs-container');
+          const viewportEl = document.getElementById('file-explorer-content');
+
+          // Back & Up button state
+          const isRoot = stageState.currentPath === 'root';
+          backBtn.disabled = isRoot;
+          upBtn.disabled = isRoot;
+
+          // Build breadcrumb chain
+          let pathList = [];
+          let tempKey = stageState.currentPath;
+          while (tempKey) {
+            pathList.unshift({ key: tempKey, name: fileSystemTree[tempKey].name });
+            tempKey = fileSystemTree[tempKey].parent;
+          }
+
+          breadcrumbsEl.innerHTML = pathList.map((p, idx) => {
+            const isLast = idx === pathList.length - 1;
+            return `
+              <button onclick="navigateToFolder('${p.key}')" class="px-2 py-0.5 rounded font-black transition-all ${isLast ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100'}">
+                ${p.name}
+              </button>
+              ${!isLast ? '<i class="ph-bold ph-caret-right text-slate-400 text-xs"></i>' : ''}
+            `;
+          }).join('');
+
+          // Render contents
+          viewportEl.innerHTML = '';
+
+          // Render child folders
+          if (current.folders.length > 0) {
+            current.folders.forEach(folder => {
+              const fEl = document.createElement('div');
+              fEl.className = "group w-36 h-40 bg-amber-50 hover:bg-amber-100/90 border-2 border-amber-300 hover:border-blue-500 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all shadow hover:shadow-md p-2 pop-in";
+              fEl.innerHTML = `
+                <i class="ph-fill ph-folder text-6xl text-amber-500 mb-1 group-hover:scale-105 transition-transform"></i>
+                <span class="text-base font-black text-slate-800 text-center">${folder.name}</span>
+                <span class="text-[11px] font-extrabold text-blue-600 mt-1.5 bg-white px-2 py-0.5 rounded-full border border-amber-200">클릭하여 열기</span>
+              `;
+              fEl.onclick = () => {
+                playTone('click');
+                navigateToFolder(folder.id);
+              };
+              viewportEl.appendChild(fEl);
+            });
+          }
+
+          // Render files
+          if (current.files.length > 0) {
+            current.files.forEach(file => {
+              const fileEl = document.createElement('div');
+              fileEl.className = `w-36 h-40 bg-white border-2 ${file.isGoal ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400' : 'border-slate-300'} rounded-2xl flex flex-col items-center justify-center p-2 shadow pop-in transition-all`;
+              fileEl.innerHTML = `
+                <i class="ph-fill ${file.icon} text-5xl ${file.color} mb-1"></i>
+                <span class="text-sm font-black text-slate-800 text-center px-1">${file.name}</span>
+                ${file.isGoal ? '<span class="text-[11px] font-black text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full mt-1">★ 목표 달성!</span>' : ''}
+              `;
+              viewportEl.appendChild(fileEl);
+            });
+          }
+
+          // Check if reached destination: 발표 folder
+          if (stageState.currentPath === 'presentation' && !stageState.reachedGoal) {
+            stageState.reachedGoal = true;
+            setSuccessFeedback("목표 경로 [학교 > 동아리 > 발표] 폴더에 완벽히 도달했습니다! 🎉");
+          } else if (stageState.currentPath === 'presentation' && stageState.reachedGoal) {
+            setInfoFeedback("목표 지점입니다! 우측의 [다음 단계] 버튼을 눌러주세요.");
+          } else if (current.folders.length === 0 && current.files.length > 0 && !stageState.reachedGoal) {
+            setErrorFeedback("목표 경로가 아닙니다! 상단의 [← 뒤로] 버튼을 눌러 다시 찾아보세요.");
+          } else if (!stageState.reachedGoal) {
+            setInfoFeedback(`현재 위치: ${current.name}. 목표인 [학교 > 동아리 > 발표] 폴더를 찾아가세요.`);
+          }
+        }
+
+        window.navigateToFolder = (key) => {
+          stageState.currentPath = key;
+          updateExplorerView();
+        };
+
+        window.goBackFolder = () => {
+          const current = fileSystemTree[stageState.currentPath];
+          if (current.parent) {
+            playTone('click');
+            stageState.currentPath = current.parent;
+            updateExplorerView();
+          }
+        };
+
+        window.goUpFolder = () => {
+          window.goBackFolder();
+        };
+
+        // Initial view load
+        updateExplorerView();
+      }
+
+      // --- STAGE 8: 파일 검색하고 비밀문서 열람 ---
+      else if (stageNumber === 8) {
+        stageState = { secretRevealed: false, secretOpened: false };
+
+        const standardFiles = [
+          { name: "가족사진.jpg", icon: "ph-file-image", color: "text-sky-500", category: "사진" },
+          { name: "동요.mp3", icon: "ph-file-audio", color: "text-purple-500", category: "음악" },
+          { name: "학교숙제.hwp", icon: "ph-file-doc", color: "text-emerald-500", category: "문서" },
+          { name: "게임설치.exe", icon: "ph-file-code", color: "text-slate-500", category: "프로그램" },
+          { name: "체육대회.mp4", icon: "ph-file-video", color: "text-rose-500", category: "동영상" },
+          { name: "영어단어.txt", icon: "ph-file-text", color: "text-blue-500", category: "문서" },
+          { name: "수학문제집.pdf", icon: "ph-file-text", color: "text-amber-600", category: "문서" },
+          { name: "발표자료.pptx", icon: "ph-file-doc", color: "text-orange-500", category: "문서" }
+        ];
+
+        ws.innerHTML = `
+          <div class="flex-1 bg-white rounded-2xl border-2 border-slate-200 p-6 flex flex-col">
+            <!-- Search bar with strict instruction -->
+            <div class="mb-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">
+              <div class="relative w-full sm:w-96">
+                <i class="ph-bold ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl font-black"></i>
+                <input type="text" id="search-box" oninput="handleFileSearch(this.value)" placeholder="검색창에 '비밀'을 입력하세요" class="w-full pl-11 pr-4 py-3 border-2 border-slate-300 focus:border-blue-600 rounded-xl font-black text-lg focus:outline-none shadow-inner" autocomplete="off" />
+              </div>
+              <div class="bg-amber-50 border-2 border-amber-300 text-amber-950 px-4 py-2 rounded-xl text-sm font-black flex items-center gap-2">
+                <i class="ph-bold ph-shield-check text-amber-600 text-xl"></i>
+                <span>비밀문서는 보안상 <strong>'비밀'</strong>을 검색해야만 나타납니다!</span>
+              </div>
+            </div>
+
+            <!-- Dynamic Search Results Grid -->
+            <div id="search-items-grid" class="flex-1 flex flex-wrap gap-4 content-start overflow-y-auto p-2">
+              <!-- Standard files rendered initially; Secret file is NOT rendered until '비밀' is searched -->
+              ${standardFiles.map(f => `
+                <div class="search-item w-32 h-32 bg-slate-50 border-2 border-slate-200 rounded-xl flex flex-col items-center justify-center transition-all opacity-80" data-name="${f.name}">
+                  <i class="ph-fill ${f.icon} text-4xl ${f.color} mb-1"></i>
+                  <span class="text-xs font-black text-slate-800 text-center px-1">${f.name}</span>
+                  <span class="text-[10px] font-bold text-slate-400 mt-1">${f.category}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+        window.handleFileSearch = (query) => {
+          const cleanQuery = query.trim().toLowerCase();
+          const grid = document.getElementById('search-items-grid');
+          const isSecretQuery = cleanQuery.includes('비밀');
+
+          // Filter standard files
+          const standardEls = grid.querySelectorAll('.search-item:not(#secret-file-item)');
+          standardEls.forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            if (cleanQuery === '') {
+              item.style.display = 'flex';
+            } else if (name.includes(cleanQuery)) {
+              item.style.display = 'flex';
+            } else {
+              item.style.display = 'none';
+            }
+          });
+
+          // Handle Secret File dynamically: Reveal ONLY when search contains '비밀'
+          let secretItem = document.getElementById('secret-file-item');
+
+          if (isSecretQuery) {
+            if (!secretItem) {
+              playTone('success');
+              secretItem = document.createElement('div');
+              secretItem.id = 'secret-file-item';
+              secretItem.dataset.name = '비밀문서.txt';
+              secretItem.className = 'w-36 h-36 bg-amber-50 border-3 border-amber-500 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 hover:bg-amber-100 shadow-xl transition-all relative pop-in ring-4 ring-amber-300';
+              secretItem.innerHTML = `
+                <span class="absolute -top-3 -right-2 bg-red-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full uppercase shadow">1급 기밀</span>
+                <i class="ph-fill ph-file-lock text-5xl text-amber-600 mb-1"></i>
+                <span class="text-sm font-black text-amber-950">비밀문서.txt</span>
+                <span class="text-xs font-black text-blue-700 mt-1 bg-blue-100 px-2 py-0.5 rounded-md">클릭하여 열람!</span>
+              `;
+              secretItem.onclick = () => {
+                openSecretModal();
+              };
+              grid.prepend(secretItem);
+            }
+            secretItem.style.display = 'flex';
+            setInfoFeedback("검색을 통해 '비밀문서.txt'를 발견했습니다! 파일을 클릭하여 비밀을 열람하세요.");
+          } else {
+            // Remove secret item if query is erased or doesn't contain '비밀'
+            if (secretItem) {
+              secretItem.remove();
+            }
+            if (cleanQuery.length > 0) {
+              setInfoFeedback("원하는 파일이 나오지 않았습니다. '비밀'을 입력해 보세요.");
+            } else {
+              setInfoFeedback("검색창에 '비밀'을 직접 입력해야 숨겨진 비밀문서가 나타납니다.");
+            }
+          }
+        };
+      }
+
+      // --- STAGE 9: 파일 지우기 (휴지통 버리기) ---
+      else if (stageNumber === 9) {
+        stageState = { deleted: false };
+
+        ws.innerHTML = `
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+            <div class="bg-white rounded-2xl border-2 border-slate-200 p-6 flex flex-col justify-between">
+              <h3 class="text-xl font-extrabold text-slate-800 mb-2">바탕화면 파일</h3>
+              
+              <div class="flex-1 flex gap-4 items-center justify-center">
+                <div id="file-temp-trash" data-role="temp" class="w-36 h-36 bg-white border-2 border-rose-400 rounded-2xl shadow flex flex-col items-center justify-center cursor-grab hover:shadow-lg">
+                  <i class="ph-fill ph-file-text text-5xl text-rose-500 mb-2"></i>
+                  <span class="text-base font-black text-slate-800">임시.txt</span>
+                  <span class="text-xs font-bold text-rose-600">[불필요한 파일]</span>
+                </div>
+
+                <div id="file-family-keep" data-role="keep" class="w-36 h-36 bg-white border-2 border-sky-400 rounded-2xl shadow flex flex-col items-center justify-center cursor-grab hover:shadow-lg">
+                  <i class="ph-fill ph-file-image text-5xl text-sky-500 mb-2"></i>
+                  <span class="text-base font-black text-slate-800">가족사진.png</span>
+                  <span class="text-xs font-bold text-sky-600">[소중한 파일]</span>
+                </div>
+              </div>
+              <p class="text-sm font-bold text-slate-500 text-center">임시.txt만 휴지통으로 끌어다 넣으세요.</p>
+            </div>
+
+            <div id="trash-bin-9" class="bg-rose-50 rounded-2xl border-3 border-dashed border-rose-400 p-6 flex flex-col items-center justify-center transition-all">
+              <i class="ph-fill ph-trash text-8xl text-rose-500 mb-4"></i>
+              <span class="text-2xl font-black text-rose-900">휴지통</span>
+              <span id="trash-desc-9" class="text-base font-extrabold text-rose-600 mt-1">임시 파일을 여기로 버리세요</span>
+            </div>
+          </div>
+        `;
+
+        makeDraggable(ws.querySelector('#file-temp-trash'));
+        makeDraggable(ws.querySelector('#file-family-keep'));
+
+        makeDropZone(ws.querySelector('#trash-bin-9'), (dragged) => {
+          if (dragged.dataset.role === 'temp') {
+            dragged.remove();
+            stageState.deleted = true;
+            document.getElementById('trash-desc-9').innerText = "임시.txt 파일이 담겼습니다.";
+            setSuccessFeedback("불필요한 임시 파일을 휴지통에 성공적으로 버렸습니다!");
+          } else {
+            setErrorFeedback("가족사진.png는 소중한 파일입니다! 버리지 마세요.");
+          }
+        });
+      }
+
+      // --- STAGE 10: 휴지통 복원 & 폴더 삭제 종합 ---
+      else if (stageNumber === 10) {
+        stageState = { restored: false, folderDeleted: false };
+
+        ws.innerHTML = `
+          <div class="flex-1 flex flex-col gap-6">
+            <!-- Part 1: Trash Recovery -->
+            <div class="bg-white p-6 rounded-2xl border-2 border-slate-200">
+              <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                  <i class="ph-fill ph-trash text-2xl text-rose-500"></i>
+                  <h4 class="text-xl font-black text-slate-900">휴지통 열기 (복원하기)</h4>
+                </div>
+                <span class="text-sm font-black text-slate-600">실수로 지운 숙제 파일을 되살리세요</span>
+              </div>
+
+              <div class="flex items-center justify-between bg-slate-50 border border-slate-300 p-4 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <i class="ph-fill ph-file-doc text-4xl text-emerald-600"></i>
+                  <div>
+                    <span class="text-lg font-black text-slate-900 block">숙제_진짜_최종.hwp</span>
+                    <span class="text-xs font-black text-rose-600">실수로 삭제됨</span>
+                  </div>
+                </div>
+
+                <button id="restore-file-btn" onclick="triggerRestoreFile()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-base rounded-xl flex items-center gap-2 transition-all">
+                  <i class="ph-bold ph-arrow-counter-clockwise font-black"></i>
+                  <span class="font-black">복원하기</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Part 2: Folder Delete -->
+            <div class="bg-white p-6 rounded-2xl border-2 border-slate-200 flex-1 flex flex-col">
+              <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                  <i class="ph-bold ph-folder-notch-minus text-2xl text-amber-500 font-black"></i>
+                  <h4 class="text-xl font-black text-slate-900">폴더 지우기</h4>
+                </div>
+                <span class="text-sm font-black text-slate-600">더 이상 쓰지 않는 빈 '임시폴더'를 삭제하세요</span>
+              </div>
+
+              <div class="flex-1 flex items-center gap-6">
+                <div id="delete-target-folder" class="relative w-40 h-40 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col items-center justify-center">
+                  <button onclick="triggerDeleteFolder()" title="폴더 삭제" class="absolute -top-3 -right-3 w-9 h-9 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center font-black text-lg shadow-md transition-all">
+                    ✕
+                  </button>
+                  <i class="ph-fill ph-folder text-6xl text-amber-500 mb-2"></i>
+                  <span class="text-lg font-black text-slate-900">임시폴더</span>
+                  <span class="text-xs font-black text-rose-600 mt-1">빈 폴더</span>
+                </div>
+
+                <div class="w-40 h-40 bg-slate-50 border-2 border-slate-300 rounded-2xl flex flex-col items-center justify-center opacity-60">
+                  <i class="ph-fill ph-folder text-6xl text-slate-400 mb-2"></i>
+                  <span class="text-lg font-black text-slate-800">보관용</span>
+                  <span class="text-xs font-black text-slate-500 mt-1">유지 대상</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        window.triggerRestoreFile = () => {
+          if (stageState.restored) return;
+          stageState.restored = true;
+          const btn = document.getElementById('restore-file-btn');
+          btn.className = "px-5 py-2.5 bg-slate-300 text-slate-600 font-extrabold text-base rounded-xl cursor-not-allowed flex items-center gap-2";
+          btn.innerHTML = '<i class="ph-bold ph-check"></i> <span>복원됨</span>';
+          checkFinalStageCompletion();
+        };
+
+        window.triggerDeleteFolder = () => {
+          if (stageState.folderDeleted) return;
+          stageState.folderDeleted = true;
+          const folder = document.getElementById('delete-target-folder');
+          folder.remove();
+          checkFinalStageCompletion();
+        };
+
+        function checkFinalStageCompletion() {
+          if (stageState.restored && stageState.folderDeleted) {
+            setSuccessFeedback("모든 미션을 완수했습니다! 축하합니다! 🎉");
+            const nextBtn = document.getElementById('next-stage-btn');
+            nextBtn.innerHTML = '<span>최종 수료증 확인</span> <i class="ph-bold ph-medal"></i>';
+            nextBtn.onclick = () => {
+              showCertificate();
+            };
+          } else if (stageState.restored && !stageState.folderDeleted) {
+            setInfoFeedback("파일을 복원했습니다! 이제 '임시폴더'의 ✕ 버튼을 눌러 삭제하세요.");
+          } else if (!stageState.restored && stageState.folderDeleted) {
+            setInfoFeedback("폴더를 삭제했습니다! 이제 휴지통에서 파일을 복원하세요.");
+          }
+        }
+      }
+    }
+  </script>
+
+  <script>
+    function goToNextStage() {
+      playTone('click');
+      if (currentStage >= totalStages) {
+        showCertificate();
+      } else {
+        currentStage++;
+        renderStage(currentStage);
+      }
+    }
+
+    function resetCurrentStage() {
+      playTone('click');
+      renderStage(currentStage);
+    }
+
+    // Initialize first stage when window mounts
+    window.addEventListener('DOMContentLoaded', () => {
+      renderStage(1);
+    });
+  </script>
+</body>
+</html>
