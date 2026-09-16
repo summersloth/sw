@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>REACTION LAB - 순발력 반응속도 테스트</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Tone.js for ultra low latency sound -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
+    
+    * {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      background-color: #0b111e;
+    }
+
+    /* 민트색 버튼 발광 효과 */
+    .btn-mint-glow {
+      background: #00d29f;
+      box-shadow: 0 10px 25px -5px rgba(0, 210, 159, 0.35);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-mint-glow:hover {
+      background: #05e4ad;
+      box-shadow: 0 14px 30px -4px rgba(0, 210, 159, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-mint-glow:active {
+      transform: translateY(1px);
+    }
+
+    /* 은은한 펄스 애니메이션 */
+    @keyframes subtle-pulse {
+      0%, 100% { opacity: 0.95; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+    .pulse-subtle {
+      animation: subtle-pulse 2s infinite ease-in-out;
+    }
+
+    /* 터치 파동 효과 */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: ripple-anim 0.6s linear;
+      background-color: rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+    }
+    @keyframes ripple-anim {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col items-center justify-between">
+
+  <!-- 상단 네비게이션 헤더 -->
+  <header class="w-full max-w-5xl px-5 py-4 flex items-center justify-between z-20">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+      <div class="w-10 h-10 rounded-2xl bg-[#00d29f] flex items-center justify-center shadow-lg shadow-[#00d29f]/25">
+        <i class="fa-solid fa-bolt text-slate-950 text-xl font-black"></i>
+      </div>
+      <div>
+        <h1 class="font-black text-lg tracking-tight leading-none text-white">REACTION LAB</h1>
+        <p class="text-xs text-slate-400 font-medium mt-1">순발력 반응속도 테스트</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2.5">
+      <!-- 사운드 토글 버튼 -->
+      <button id="soundToggleBtn" class="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all border border-slate-800">
+        <i class="fa-solid fa-volume-high text-[#00d29f]" id="soundIcon"></i>
+        <span class="hidden sm:inline" id="soundText">소리 켜짐</span>
+      </button>
+
+      <!-- 나의 기록 모달 오픈 버튼 -->
+      <button id="navRecordsBtn" class="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 text-xs font-bold flex items-center gap-2 transition-all border border-slate-800 shadow-sm">
+        <i class="fa-solid fa-trophy text-amber-400"></i>
+        <span>나의 기록</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 중앙 메인 영역 -->
+  <main class="w-full max-w-5xl px-4 flex-1 flex flex-col justify-center items-center my-4 relative">
+
+    <!-- [뷰 1] 보내주신 사진과 100% 동일한 초기 시작 카드 화면 -->
+    <section id="welcomeCard" class="w-full max-w-md bg-[#131d2e] border border-slate-800/90 rounded-[28px] p-7 shadow-2xl shadow-black/60 relative flex flex-col items-center text-center transition-all duration-300">
+      
+      <!-- 상단 밀리초 배지 -->
+      <div class="px-3.5 py-1 rounded-full border border-pink-500/40 bg-pink-500/10 text-pink-400 text-xs font-bold mb-4 tracking-tight">
+        밀리초(MS) 단위 초정밀 측정
+      </div>
+
+      <!-- 메인 타이틀 & 설명 문구 -->
+      <h2 class="text-3xl font-black text-white tracking-tight mb-2.5">
+        당신의 반응속도는?
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed mb-6">
+        화면이 <span class="text-rose-400 font-bold">빨간색</span>에서 <span class="text-[#00d29f] font-bold">초록색</span>으로 전환되는 찰나의 순간에 화면을 탭하세요!
+      </p>
+
+      <!-- 플레이어 닉네임 입력 폼 -->
+      <div class="w-full text-left mb-5">
+        <label for="nicknameInput" class="block text-xs font-semibold text-slate-300 mb-2 pl-0.5">
+          플레이어 닉네임
+        </label>
+        <div class="relative flex items-center">
+          <i class="fa-solid fa-user-ninja absolute left-4 text-slate-400 text-sm"></i>
+          <input 
+            type="text" 
+            id="nicknameInput" 
+            maxlength="10" 
+            placeholder="이름 또는 닉네임 입력 (예: 페이커)" 
+            class="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-[#0c1422] border border-slate-800 text-white font-semibold placeholder-slate-500 text-sm focus:outline-none focus:border-[#00d29f] focus:ring-1 focus:ring-[#00d29f] transition"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <!-- STEP 1-2-3 안내 그리드 -->
+      <div class="w-full grid grid-cols-3 gap-2.5 mb-6 text-center">
+        <div class="bg-[#0c1422]/90 border border-slate-800/80 rounded-2xl py-3 px-1 flex flex-col items-center justify-center">
+          <span class="text-[10px] font-black text-rose-400 tracking-wider">STEP 1</span>
+          <span class="text-xs font-bold text-slate-200 mt-1">빨간색 대기</span>
+        </div>
+        <div class="bg-[#0c1422]/90 border border-slate-800/80 rounded-2xl py-3 px-1 flex flex-col items-center justify-center">
+          <span class="text-[10px] font-black text-[#00d29f] tracking-wider">STEP 2</span>
+          <span class="text-xs font-bold text-slate-200 mt-1">초록 즉시 터치</span>
+        </div>
+        <div class="bg-[#0c1422]/90 border border-slate-800/80 rounded-2xl py-3 px-1 flex flex-col items-center justify-center">
+          <span class="text-[10px] font-black text-amber-400 tracking-wider">STEP 3</span>
+          <span class="text-xs font-bold text-slate-200 mt-1">나의 기록 저장</span>
+        </div>
+      </div>
+
+      <!-- 테스트 시작하기 버튼 (민트색) -->
+      <button 
+        id="startTestBtn" 
+        class="w-full py-4 rounded-2xl btn-mint-glow text-slate-950 font-black text-base flex items-center justify-center gap-2 cursor-pointer transition">
+        <span>테스트 시작하기</span>
+        <i class="fa-solid fa-arrow-right text-sm"></i>
+      </button>
+
+      <!-- 하단 구분선 & 누적 기록 / 기록 확인 안내바 -->
+      <div class="w-full mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold">
+        <div class="text-slate-400">
+          내 누적 기록: <span id="cardAttemptCount" class="text-[#00d29f] font-bold">0</span>회
+        </div>
+        <button id="cardOpenRecordsBtn" class="text-amber-400 hover:text-amber-300 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-trophy text-[11px]"></i>
+          <span>나의 기록 확인</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- [뷰 2] 실제 반응속도 측정 게임 화면 (처음엔 숨김) -->
+    <section id="gameAreaWrapper" class="w-full max-w-3xl hidden flex-col items-center">
+      
+      <!-- 상단 플레이어 바 -->
+      <div class="w-full flex items-center justify-between px-2 mb-3 text-xs font-semibold text-slate-400">
+        <div class="flex items-center gap-2">
+          <button onclick="goHome()" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-house text-[11px]"></i>
+            <span>처음으로</span>
+          </button>
+          <span class="bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-200 font-bold">
+            <i class="fa-solid fa-user text-[#00d29f] mr-1.5"></i>
+            <span id="activePlayerName">도전자</span>
+          </span>
+        </div>
+        <div class="bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg">
+          누적 측정: <span id="arenaAttemptCount" class="text-[#00d29f] font-bold">0</span>회
+        </div>
+      </div>
+
+      <!-- 터치 측정 스크린 박스 -->
+      <div id="gameScreen" class="w-full h-[62vh] min-h-[440px] max-h-[620px] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col justify-between transition-colors duration-200 bg-slate-900 border border-slate-800 cursor-pointer select-none">
+        
+        <!-- 게임 스크린 내부 상단 바 -->
+        <div class="w-full px-6 py-4 flex items-center justify-between text-white/90 z-10 pointer-events-none">
+          <div class="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold">
+            <i class="fa-solid fa-crosshairs text-[#00d29f]"></i>
+            <span>초정밀 반응 측정 중</span>
+          </div>
+          <div class="bg-black/30 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold">
+            최고: <strong id="bestMiniText" class="text-amber-400 font-bold">-</strong>
+          </div>
+        </div>
+
+        <!-- 중앙 인터랙션 요소 -->
+        <div id="gameClickZone" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none">
+          
+          <div id="gameIconWrapper" class="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-5 backdrop-blur-sm pointer-events-none shadow-inner">
+            <i id="gameIcon" class="fa-solid fa-hand-pointer text-3xl text-[#00d29f]"></i>
+          </div>
+
+          <h2 id="gameTitle" class="text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md pointer-events-none mb-3">
+            화면을 터치해 시작하세요
+          </h2>
+
+          <p id="gameSubtext" class="text-sm sm:text-base text-white/80 max-w-md font-medium leading-relaxed drop-shadow-sm pointer-events-none">
+            화면이 <span class="text-rose-400 font-bold">빨간색</span>에서 <span class="text-[#00d29f] font-bold">초록색</span>으로 전환되는 찰나의 순간에 탭하세요!
+          </p>
+
+          <!-- 결과 세부 정보 배지 (결과 화면에서만 표시) -->
+          <div id="resultStatsCard" class="mt-5 flex flex-col items-center gap-2.5 hidden pointer-events-none">
+            <div class="px-5 py-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 flex items-center gap-3">
+              <span id="resultTierBadge" class="text-xs font-black px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 uppercase">
+                판정
+              </span>
+              <span id="resultTierDesc" class="text-sm font-semibold text-white">상위 1% 수준</span>
+            </div>
+            <span class="text-xs text-white/90 animate-bounce mt-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-arrow-rotate-right"></i> 화면을 다시 터치하면 다음 측정을 시작합니다
+            </span>
+          </div>
+        </div>
+
+        <!-- 게임 스크린 내부 하단 안내문 -->
+        <div class="w-full px-6 py-4 flex items-center justify-between text-xs text-white/70 z-10 pointer-events-none">
+          <span id="stateTipText">💡 화면을 터치하면 대기(빨간색) 상태로 진입합니다.</span>
+        </div>
+      </div>
+
+      <!-- 하단 통계 미니 그리드 -->
+      <div class="w-full grid grid-cols-3 gap-3 mt-4 text-center">
+        <div class="bg-[#131d2e] border border-slate-800 rounded-2xl p-3 flex flex-col items-center justify-center">
+          <span class="text-[11px] font-semibold text-slate-400">내 최고 기록</span>
+          <span class="text-base sm:text-lg font-black text-amber-400 mt-0.5" id="dashBestText">-</span>
+        </div>
+        <div class="bg-[#131d2e] border border-slate-800 rounded-2xl p-3 flex flex-col items-center justify-center">
+          <span class="text-[11px] font-semibold text-slate-400">최근 측정</span>
+          <span class="text-base sm:text-lg font-black text-[#00d29f] mt-0.5" id="dashRecentText">-</span>
+        </div>
+        <div class="bg-[#131d2e] border border-slate-800 rounded-2xl p-3 flex flex-col items-center justify-center">
+          <span class="text-[11px] font-semibold text-slate-400">평균 속도</span>
+          <span class="text-base sm:text-lg font-black text-sky-400 mt-0.5" id="dashAvgText">-</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- [모달] 나의 기록 확인하기 & 비밀번호 없는 즉시 초기화 -->
+  <div id="recordsModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-[#131d2e] border border-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      
+      <!-- 모달 헤더 -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <i class="fa-solid fa-trophy text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-white" id="modalTitleText">나의 반응속도 기록</h3>
+            <p class="text-xs text-slate-400">측정한 모든 연습 기록을 확인하세요</p>
+          </div>
+        </div>
+        <button id="closeRecordsBtn" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- 요약 3단 카드 -->
+      <div class="grid grid-cols-3 gap-2.5 p-4 bg-[#0c1422]/90 border-b border-slate-800 text-center">
+        <div class="p-2.5 bg-slate-900/90 rounded-2xl border border-slate-800">
+          <span class="text-[11px] text-slate-400 font-medium">최고(Best)</span>
+          <div class="text-sm sm:text-base font-black text-amber-400 mt-0.5" id="modalBestVal">-</div>
+        </div>
+        <div class="p-2.5 bg-slate-900/90 rounded-2xl border border-slate-800">
+          <span class="text-[11px] text-slate-400 font-medium">평균(Avg)</span>
+          <div class="text-sm sm:text-base font-black text-sky-400 mt-0.5" id="modalAvgVal">-</div>
+        </div>
+        <div class="p-2.5 bg-slate-900/90 rounded-2xl border border-slate-800">
+          <span class="text-[11px] text-slate-400 font-medium">총 측정</span>
+          <div class="text-sm sm:text-base font-black text-slate-200 mt-0.5" id="modalTotalVal">0회</div>
+        </div>
+      </div>
+
+      <!-- 기록 리스트 스크롤 영역 -->
+      <div class="p-4 overflow-y-auto flex-1 space-y-2" id="recordsListContainer">
+        <!-- 기록 아이템들이 JS로 주입됨 -->
+      </div>
+
+      <!-- 모달 푸터 (비밀번호 없는 즉시 초기화 버튼) -->
+      <div class="p-4 border-t border-slate-800 bg-[#0c1422] flex items-center justify-between gap-3">
+        <!-- 기본 상태: 초기화 시작 버튼 -->
+        <div id="resetNormalBar" class="flex items-center justify-between w-full">
+          <button id="promptResetBtn" class="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-xs font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-trash-can"></i>
+            <span>기록 초기화 하기</span>
+          </button>
+          <button id="closeRecordsBottomBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition border border-slate-700">
+            닫기
+          </button>
+        </div>
+
+        <!-- 1회 확인 상태 (비밀번호 없이 클릭 한 번으로 확정) -->
+        <div id="resetConfirmBar" class="hidden items-center justify-between w-full gap-2 bg-rose-950/40 p-2 rounded-2xl border border-rose-500/30">
+          <div class="flex items-center gap-2 pl-2 text-rose-300 text-xs font-bold">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>정말 모든 기록을 지울까요?</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="cancelResetBtn" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-bold transition">
+              취소
+            </button>
+            <button id="executeResetBtn" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition">
+              초기화 확인
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 메시지 바 -->
+  <div id="toastNotification" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-none transition-all duration-300 translate-y-20 opacity-0 z-50">
+    <div id="toastIcon" class="text-[#00d29f] text-base">
+      <i class="fa-solid fa-circle-check"></i>
+    </div>
+    <span id="toastMessage" class="text-xs sm:text-sm font-semibold">알림</span>
+  </div>
+
+  <!-- 하단 안내 푸터 -->
+  <footer class="w-full max-w-5xl px-5 py-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800/80">
+    <div>
+      인간의 평균 반응속도는 약 <strong class="text-slate-400">200ms ~ 270ms</strong> 사이입니다.
+    </div>
+    <div class="flex items-center gap-2.5 text-[11px]">
+      <span>F1 레이서: ~100ms</span>
+      <span>•</span>
+      <span>e스포츠 프로: 130~170ms</span>
+    </div>
+  </footer>
+
+  <script>
+    // 게임 상태 정의
+    const GameState = {
+      IDLE: 'IDLE',
+      WAITING: 'WAITING',   // 빨간 화면 (대기)
+      READY: 'READY',       // 초록 화면 (즉시 터치!)
+      EARLY: 'EARLY',       // 너무 일찍 누름 (파울)
+      RESULT: 'RESULT'      // 결과 표시 (밀리초)
+    };
+
+    let currentState = GameState.IDLE;
+    let waitTimer = null;
+    let startTime = 0;
+    let soundEnabled = true;
+
+    const STORAGE_KEY = 'user_reaction_local_records_v3';
+    const NICKNAME_KEY = 'user_reaction_last_player_nickname';
+
+    let currentNickname = localStorage.getItem(NICKNAME_KEY) || '';
+
+    // Tone.js 사운드 신디사이저
+    let synthsInitialized = false;
+    let toneSynth = null;
+
+    function initAudio() {
+      if (synthsInitialized) return;
+      try {
+        toneSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+        toneSynth.volume.value = -8;
+        synthsInitialized = true;
+      } catch (err) {}
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        if (!synthsInitialized) initAudio();
+        if (Tone.context.state !== 'running') {
+          Tone.start();
+        }
+        const now = Tone.now();
+        if (type === 'green') {
+          toneSynth.triggerAttackRelease("C6", "32n", now);
+        } else if (type === 'success') {
+          toneSynth.triggerAttackRelease(["E5", "G5", "C6"], "16n", now);
+        } else if (type === 'early') {
+          toneSynth.triggerAttackRelease(["C3", "Db3"], "8n", now);
+        } else if (type === 'click') {
+          toneSynth.triggerAttackRelease("G4", "64n", now);
+        }
+      } catch (e) {}
+    }
+
+    // DOM 요소 캐싱
+    const welcomeCard = document.getElementById('welcomeCard');
+    const gameAreaWrapper = document.getElementById('gameAreaWrapper');
+    const nicknameInput = document.getElementById('nicknameInput');
+    const startTestBtn = document.getElementById('startTestBtn');
+    const activePlayerName = document.getElementById('activePlayerName');
+    const cardAttemptCount = document.getElementById('cardAttemptCount');
+    const arenaAttemptCount = document.getElementById('arenaAttemptCount');
+
+    const gameScreen = document.getElementById('gameScreen');
+    const gameClickZone = document.getElementById('gameClickZone');
+    const gameIconWrapper = document.getElementById('gameIconWrapper');
+    const gameIcon = document.getElementById('gameIcon');
+    const gameTitle = document.getElementById('gameTitle');
+    const gameSubtext = document.getElementById('gameSubtext');
+    const resultStatsCard = document.getElementById('resultStatsCard');
+    const resultTierBadge = document.getElementById('resultTierBadge');
+    const resultTierDesc = document.getElementById('resultTierDesc');
+    const stateTipText = document.getElementById('stateTipText');
+    const bestMiniText = document.getElementById('bestMiniText');
+
+    const dashBestText = document.getElementById('dashBestText');
+    const dashRecentText = document.getElementById('dashRecentText');
+    const dashAvgText = document.getElementById('dashAvgText');
+
+    const recordsModal = document.getElementById('recordsModal');
+    const navRecordsBtn = document.getElementById('navRecordsBtn');
+    const cardOpenRecordsBtn = document.getElementById('cardOpenRecordsBtn');
+    const closeRecordsBtn = document.getElementById('closeRecordsBtn');
+    const closeRecordsBottomBtn = document.getElementById('closeRecordsBottomBtn');
+    const modalTitleText = document.getElementById('modalTitleText');
+    const modalBestVal = document.getElementById('modalBestVal');
+    const modalAvgVal = document.getElementById('modalAvgVal');
+    const modalTotalVal = document.getElementById('modalTotalVal');
+    const recordsListContainer = document.getElementById('recordsListContainer');
+
+    const resetNormalBar = document.getElementById('resetNormalBar');
+    const resetConfirmBar = document.getElementById('resetConfirmBar');
+    const promptResetBtn = document.getElementById('promptResetBtn');
+    const cancelResetBtn = document.getElementById('cancelResetBtn');
+    const executeResetBtn = document.getElementById('executeResetBtn');
+
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIcon = document.getElementById('soundIcon');
+    const soundText = document.getElementById('soundText');
+
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+    let toastTimeout = null;
+
+    function showToast(message, type = 'success') {
+      clearTimeout(toastTimeout);
+      toastMessage.innerText = message;
+      if (type === 'success') {
+        toastIcon.className = 'text-[#00d29f] text-base';
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+      } else if (type === 'error') {
+        toastIcon.className = 'text-rose-400 text-base';
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+      } else {
+        toastIcon.className = 'text-amber-400 text-base';
+        toastIcon.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+      }
+      toastNotification.classList.remove('translate-y-20', 'opacity-0');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+      toastTimeout = setTimeout(() => {
+        toastNotification.classList.add('translate-y-20', 'opacity-0');
+        toastNotification.classList.remove('translate-y-0', 'opacity-100');
+      }, 2200);
+    }
+
+    // 초기 화면(홈)으로 이동
+    function goHome() {
+      clearTimeout(waitTimer);
+      gameAreaWrapper.classList.add('hidden');
+      welcomeCard.classList.remove('hidden');
+      currentState = GameState.IDLE;
+      updateStats();
+    }
+
+    // 테스트 시작 버튼 클릭 시 게임 아레나 전환
+    startTestBtn.addEventListener('click', () => {
+      initAudio();
+      let inputVal = nicknameInput.value.trim();
+      if (!inputVal) {
+        inputVal = '도전자';
+      }
+      currentNickname = inputVal;
+      localStorage.setItem(NICKNAME_KEY, currentNickname);
+
+      activePlayerName.innerText = currentNickname;
+      welcomeCard.classList.add('hidden');
+      gameAreaWrapper.classList.remove('hidden');
+      setGameVisualState(GameState.IDLE);
+      updateStats();
+    });
+
+    // 엔터키로도 바로 시작
+    nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        startTestBtn.click();
+      }
+    });
+
+    // 기록 데이터 로컬스토리지 처리
+    function getRecords() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveRecords(records) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      } catch (e) {}
+    }
+
+    function getTierInfo(ms) {
+      if (ms < 160) return { badge: '신급 반응속도', desc: '상위 0.1% 전투기 조종사 / 신인류', color: 'bg-purple-500' };
+      if (ms < 200) return { badge: '프로게이머급', desc: '상위 1% e스포츠 프로 선수 수준', color: 'bg-[#00d29f]' };
+      if (ms < 240) return { badge: '상위권 운동선수', desc: '상위 10% 매우 민첩한 반응', color: 'bg-sky-400' };
+      if (ms < 290) return { badge: '평균 수준', desc: '건강한 일반 성인의 표준 속도', color: 'bg-amber-400' };
+      if (ms < 360) return { badge: '나른한 곰', desc: '조금 졸리신가요? 집중해보세요!', color: 'bg-orange-400' };
+      return { badge: '느긋한 거북이', desc: '화면에 손가락을 미리 준비해보세요!', color: 'bg-rose-400' };
+    }
+
+    function setGameVisualState(state, customMs = null) {
+      currentState = state;
+      gameScreen.classList.remove('bg-rose-600', 'bg-emerald-500', 'bg-amber-500', 'bg-slate-900', 'bg-blue-600');
+      gameIconWrapper.classList.remove('pulse-subtle');
+      resultStatsCard.classList.add('hidden');
+
+      switch (state) {
+        case GameState.IDLE:
+          gameScreen.classList.add('bg-slate-900');
+          gameIcon.className = 'fa-solid fa-hand-pointer text-3xl text-[#00d29f]';
+          gameTitle.innerText = '화면을 터치해 시작하세요';
+          gameSubtext.innerHTML = '화면이 <span class="text-rose-400 font-bold">빨간색</span>에서 <span class="text-[#00d29f] font-bold">초록색</span>으로 바뀔 때 즉시 터치!';
+          stateTipText.innerText = '💡 준비가 되면 화면을 눌러 측정을 시작하세요.';
+          break;
+
+        case GameState.WAITING:
+          // 빨간 대기 화면
+          gameScreen.classList.add('bg-rose-600');
+          gameIcon.className = 'fa-solid fa-hourglass-half text-3xl text-white';
+          gameIconWrapper.classList.add('pulse-subtle');
+          gameTitle.innerText = '기다리세요...';
+          gameSubtext.innerText = '초록색으로 바뀌는 순간 최대한 빨리 터치하세요!';
+          stateTipText.innerText = '⚠️ 지금 누르면 부정출발(파울) 처리됩니다!';
+          break;
+
+        case GameState.READY:
+          // 초록 터치 신호
+          gameScreen.classList.add('bg-emerald-500');
+          gameIcon.className = 'fa-solid fa-bolt text-3xl text-slate-950';
+          gameTitle.innerText = '지금 클릭하세요!!';
+          gameSubtext.innerText = '번개처럼 빠른 속도로 탭!';
+          stateTipText.innerText = '⚡ 지금 즉시 화면을 터치하세요!';
+          playSound('green');
+          break;
+
+        case GameState.EARLY:
+          // 부정출발 (파울)
+          gameScreen.classList.add('bg-amber-500');
+          gameIcon.className = 'fa-solid fa-triangle-exclamation text-3xl text-slate-950';
+          gameTitle.innerText = '너무 빨랐습니다!';
+          gameSubtext.innerText = '초록색이 되기 전에 눌렀습니다. 화면을 탭하여 다시 시도하세요.';
+          stateTipText.innerText = '❌ 부정출발 감지 (기록 미반영)';
+          playSound('early');
+          break;
+
+        case GameState.RESULT:
+          // 파란 결과 화면
+          gameScreen.classList.add('bg-blue-600');
+          gameIcon.className = 'fa-solid fa-stopwatch text-3xl text-white';
+          gameTitle.innerHTML = `<span class="text-yellow-300 font-black">${customMs}</span> ms`;
+          gameSubtext.innerText = '당신의 반응속도 측정 결과입니다.';
+
+          const tier = getTierInfo(customMs);
+          resultTierBadge.innerText = tier.badge;
+          resultTierBadge.className = `text-xs font-black px-2.5 py-1 rounded-lg ${tier.color} text-slate-950 uppercase`;
+          resultTierDesc.innerText = tier.desc;
+          resultStatsCard.classList.remove('hidden');
+
+          stateTipText.innerText = '✨ 화면을 다시 터치하면 다음 측정이 시작됩니다.';
+          playSound('success');
+
+          if (customMs <= 200 && window.confetti) {
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+          }
+          break;
+      }
+    }
+
+    function startRound() {
+      clearTimeout(waitTimer);
+      setGameVisualState(GameState.WAITING);
+
+      // 1.8초 ~ 4.2초 무작위 딜레이
+      const randomWait = Math.floor(Math.random() * 2400) + 1800;
+      waitTimer = setTimeout(() => {
+        if (currentState === GameState.WAITING) {
+          startTime = performance.now();
+          setGameVisualState(GameState.READY);
+        }
+      }, randomWait);
+    }
+
+    // 터치 파동 효과
+    function createRipple(e) {
+      const rect = gameScreen.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = `${size}px`;
+      
+      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left + rect.width / 2);
+      const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top + rect.height / 2);
+
+      ripple.style.left = `${clientX - rect.left - size / 2}px`;
+      ripple.style.top = `${clientY - rect.top - size / 2}px`;
+      gameScreen.appendChild(ripple);
+
+      setTimeout(() => { ripple.remove(); }, 600);
+    }
+
+    // 지연 없는 측정을 위해 pointerdown 사용
+    gameClickZone.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      createRipple(e);
+      initAudio();
+
+      if (currentState === GameState.IDLE) {
+        startRound();
+      } else if (currentState === GameState.WAITING) {
+        clearTimeout(waitTimer);
+        setGameVisualState(GameState.EARLY);
+      } else if (currentState === GameState.READY) {
+        const reactionTime = Math.round(performance.now() - startTime);
+        recordNewScore(reactionTime);
+        setGameVisualState(GameState.RESULT, reactionTime);
+      } else if (currentState === GameState.EARLY || currentState === GameState.RESULT) {
+        startRound();
+      }
+    });
+
+    function recordNewScore(ms) {
+      const records = getRecords();
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+      records.unshift({
+        name: currentNickname || '도전자',
+        time: ms,
+        date: timeStr,
+        timestamp: Date.now()
+      });
+
+      saveRecords(records);
+      updateStats();
+    }
+
+    function updateStats() {
+      const records = getRecords();
+      cardAttemptCount.innerText = records.length;
+      arenaAttemptCount.innerText = records.length;
+
+      if (records.length === 0) {
+        dashBestText.innerText = '-';
+        dashRecentText.innerText = '-';
+        dashAvgText.innerText = '-';
+        bestMiniText.innerText = '-';
+        return;
+      }
+
+      const times = records.map(r => r.time);
+      const best = Math.min(...times);
+      const recent = records[0].time;
+      const avg = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+
+      dashBestText.innerText = `${best} ms`;
+      dashRecentText.innerText = `${recent} ms`;
+      dashAvgText.innerText = `${avg} ms`;
+      bestMiniText.innerText = `${best} ms`;
+    }
+
+    function renderRecordsModal() {
+      const records = getRecords();
+      resetNormalBar.classList.remove('hidden');
+      resetConfirmBar.classList.add('hidden');
+
+      modalTitleText.innerText = currentNickname ? `${currentNickname}님의 기록` : '나의 반응속도 기록';
+
+      if (records.length === 0) {
+        modalBestVal.innerText = '-';
+        modalAvgVal.innerText = '-';
+        modalTotalVal.innerText = '0회';
+        recordsListContainer.innerHTML = `
+          <div class="py-12 text-center text-slate-500">
+            <i class="fa-solid fa-chart-simple text-3xl mb-3 text-slate-600"></i>
+            <p class="text-sm font-semibold">저장된 기록이 없습니다.</p>
+            <p class="text-xs text-slate-500 mt-1">테스트를 진행하면 여기에 자동으로 기록됩니다.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const times = records.map(r => r.time);
+      const best = Math.min(...times);
+      const avg = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+
+      modalBestVal.innerText = `${best} ms`;
+      modalAvgVal.innerText = `${avg} ms`;
+      modalTotalVal.innerText = `${records.length}회`;
+
+      recordsListContainer.innerHTML = '';
+      records.forEach((item, index) => {
+        const isBest = item.time === best;
+        const tier = getTierInfo(item.time);
+
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-2xl border flex items-center justify-between transition-all ${
+          isBest ? 'bg-amber-500/10 border-amber-500/40' : 'bg-slate-950/60 border-slate-800'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-lg ${isBest ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-400 font-bold'} flex items-center justify-center text-[11px]">
+              ${isBest ? '<i class="fa-solid fa-crown text-[10px]"></i>' : records.length - index}
+            </span>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-black text-sm text-white">${item.time} ms</span>
+                ${isBest ? '<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">최고기록</span>' : ''}
+              </div>
+              <span class="text-[10px] text-slate-400">${tier.badge} • ${item.date} 측정</span>
+            </div>
+          </div>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md ${tier.color} text-slate-950">
+            ${tier.badge.split(' ')[0]}
+          </span>
+        `;
+        recordsListContainer.appendChild(card);
+      });
+    }
+
+    function openRecordsModal() {
+      renderRecordsModal();
+      recordsModal.classList.remove('hidden');
+      setTimeout(() => { recordsModal.classList.remove('opacity-0'); }, 10);
+    }
+
+    function closeRecordsModal() {
+      recordsModal.classList.add('opacity-0');
+      setTimeout(() => { recordsModal.classList.add('hidden'); }, 200);
+    }
+
+    navRecordsBtn.addEventListener('click', openRecordsModal);
+    cardOpenRecordsBtn.addEventListener('click', openRecordsModal);
+    closeRecordsBtn.addEventListener('click', closeRecordsModal);
+    closeRecordsBottomBtn.addEventListener('click', closeRecordsModal);
+    recordsModal.addEventListener('click', (e) => {
+      if (e.target === recordsModal) closeRecordsModal();
+    });
+
+    // 비밀번호 없는 즉시 기록 초기화 인터랙션
+    promptResetBtn.addEventListener('click', () => {
+      resetNormalBar.classList.add('hidden');
+      resetConfirmBar.classList.remove('hidden');
+    });
+
+    cancelResetBtn.addEventListener('click', () => {
+      resetConfirmBar.classList.add('hidden');
+      resetNormalBar.classList.remove('hidden');
+    });
+
+    executeResetBtn.addEventListener('click', () => {
+      saveRecords([]);
+      updateStats();
+      renderRecordsModal();
+      showToast('모든 기록이 깨끗하게 초기화되었습니다.', 'success');
+      playSound('early');
+    });
+
+    // 사운드 토글
+    soundToggleBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      if (soundEnabled) {
+        initAudio();
+        soundIcon.className = 'fa-solid fa-volume-high text-[#00d29f]';
+        soundText.innerText = '소리 켜짐';
+        showToast('효과음이 켜졌습니다.', 'info');
+      } else {
+        soundIcon.className = 'fa-solid fa-volume-xmark text-slate-400';
+        soundText.innerText = '소리 꺼짐';
+        showToast('효과음이 꺼졌습니다.', 'info');
+      }
+    });
+
+    // 앱 초기화
+    if (currentNickname) {
+      nicknameInput.value = currentNickname;
+    }
+    updateStats();
+  </script>
+</body>
+</html>
