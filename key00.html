@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>키보드 특수키 알아보기</title>
+<style>
+:root{--bg:#bfe6fb;--bar:#5bbcf0;--bar-ink:#fff;--paper:#fffef9;--line:#cfe8fb;--ink:#1c3b52;--soft:#e4f4fd;--ok:#2fae6b;--hint:#fff3b8;--lh:clamp(38px,6.4vh,60px);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f2f45;--soft:#17435f;--ink:#e8f6ff;--hint:#5a4f12}}
+:root[data-theme="dark"]{--bg:#0f2f45;--soft:#17435f;--ink:#e8f6ff;--hint:#5a4f12}
+html{height:100vh;height:100dvh;scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:"Jua","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+button{font:inherit;cursor:pointer}
+.hidden{display:none!important}
+.wrap{height:100%;max-width:960px;margin:0 auto;padding:clamp(6px,1.4vh,14px) 14px;display:flex;flex-direction:column}
+#start,#end{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:clamp(8px,2vh,22px)}
+#start h1,#end h1{font-size:clamp(30px,9vh,68px);margin:0}
+#start p,#end p{font-size:clamp(18px,4vh,30px);margin:0}
+.big{background:var(--bar);color:#fff;border:0;border-radius:28px;padding:clamp(10px,2.4vh,22px) 44px;font-size:clamp(22px,4.6vh,38px);box-shadow:0 6px 0 #2f93c9}
+.big:active{transform:translateY(5px);box-shadow:0 1px 0 #2f93c9}
+.keys{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.keys span{background:#fff;color:#1c3b52;border:3px solid #5bbcf0;border-radius:12px;padding:4px 14px;font-size:clamp(16px,3.2vh,24px);box-shadow:0 3px 0 #8ccdf2}
+#play{flex:1;min-height:0;display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px)}
+.head{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap}
+.chips{display:flex;gap:6px}
+.chips button{width:clamp(34px,6vh,48px);height:clamp(34px,6vh,48px);border-radius:50%;border:3px solid var(--bar);background:var(--soft);color:var(--ink);font-size:clamp(16px,3vh,22px);padding:0}
+.chips button.on{background:var(--bar);color:#fff}
+.chips button.done{border-color:var(--ok)}
+h2{font-size:clamp(22px,4.6vh,40px);margin:0;white-space:nowrap}
+.desc{font-size:clamp(14px,2.8vh,22px);margin:0}
+.goal{background:var(--soft);border:3px dashed var(--bar);border-radius:16px;padding:clamp(4px,1vh,10px) 16px;font-size:clamp(18px,3.8vh,28px);display:flex;align-items:baseline;gap:12px}
+.goal b{font-size:.72em;white-space:nowrap}
+.goal pre{margin:0;font:inherit;white-space:pre-wrap}
+.padwrap{flex:1;min-height:0;position:relative;display:flex}
+.pad{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--paper);border-radius:16px;overflow:hidden;box-shadow:0 5px 0 rgba(0,0,0,.12);color:#1c3b52}
+.pad .top{background:var(--bar);color:var(--bar-ink);padding:clamp(4px,1vh,10px) 16px;font-size:clamp(14px,2.6vh,22px);display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;background:#fff;opacity:.85}
+.pad .name{margin-left:6px}
+.pad .cnt{margin-left:auto}
+textarea{flex:1;min-height:0;display:block;width:100%;border:0;outline:0;resize:none;background-color:var(--paper);color:#1c3b52;font:inherit;font-size:calc(var(--lh)*.58);line-height:var(--lh);padding:0 22px;background-image:repeating-linear-gradient(transparent,transparent calc(var(--lh) - 1px),var(--line) calc(var(--lh) - 1px),var(--line) var(--lh));background-attachment:local;caret-color:#e5484d}
+textarea:focus-visible{box-shadow:inset 0 0 0 4px #ffd23f}
+.banner{position:absolute;left:12px;right:12px;bottom:12px;background:var(--ok);color:#fff;border-radius:16px;padding:clamp(6px,1.2vh,12px) 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:clamp(18px,3.6vh,28px);box-shadow:0 4px 0 rgba(0,0,0,.15)}
+.banner button{margin-left:auto;border:0;border-radius:14px;background:#fff;color:#1c7a49;padding:clamp(4px,1vh,10px) 22px;font-size:clamp(16px,3.2vh,24px)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#kbd{background:#fff;color:#1c3b52;border:3px solid var(--bar);border-radius:14px;padding:clamp(3px,.8vh,8px) 14px;font-size:clamp(14px,2.8vh,22px);min-width:160px}
+.hintwrap{position:relative}
+#hintBox{position:absolute;right:0;bottom:calc(100% + 8px);width:max-content;max-width:min(520px,calc(100vw - 28px));z-index:5;background:var(--hint);color:#1c3b52;border:3px solid #f2c200;border-radius:16px;padding:10px 16px;font-size:clamp(15px,3vh,24px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+#hintBtn{background:#ffd23f;color:#1c3b52;border:0;border-radius:22px;padding:clamp(5px,1.1vh,12px) 24px;font-size:clamp(18px,3.4vh,26px);box-shadow:0 4px 0 #d9a900}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="start">
+    <div class="keys"><span>엔터</span><span>스페이스</span><span>백스페이스</span><span>한/영</span><span>시프트</span><span>← ↑ ↓ →</span></div>
+    <h1>⌨️ 키보드 특수키</h1>
+    <p>메모장을 고치며 하나씩 배워요!</p>
+    <button class="big" id="go">키보드 특수키 알아보기</button>
+  </section>
+
+  <section id="play" class="hidden">
+    <div class="head">
+      <div class="chips" id="chips"></div>
+      <h2 id="title"></h2>
+      <p class="desc" id="desc"></p>
+    </div>
+    <div class="goal"><b>이렇게 고쳐요 ✏️</b><pre id="goal"></pre></div>
+    <div class="padwrap">
+      <div class="pad">
+        <div class="top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">내 메모장.txt</span><span class="cnt" id="cnt"></span></div>
+        <textarea id="ta" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="메모장"></textarea>
+      </div>
+      <div class="banner hidden" id="ok"><span id="okMsg">🎉 미션 성공!</span><button id="next">다음 ▶</button></div>
+    </div>
+    <div class="bar" id="bar">
+      <div id="kbd">누른 키: -</div>
+      <div class="hintwrap">
+        <div id="hintBox" class="hidden"></div>
+        <button id="hintBtn">💡 힌트</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="end" class="hidden">
+    <h1>🎉 모두 성공했어요!</h1>
+    <p style="font-size:30px">키보드 특수키 박사가 되었어요.</p>
+    <button class="big" id="again">처음부터 다시</button>
+  </section>
+</div>
+
+<script>
+function E(a){return a.map(function(x){return [x,x.replace(/\. /g,'.\n')]})}
+function Y(a){return a.map(function(p){return [p[0]+' 영어로 ',p[0]+' 영어로 '+p[1]]})}
+function X(a,c){return a.map(function(x){return [x,x+c]})}
+function pick(a){var b=a.slice(),i,j,t;for(i=b.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=b[i];b[i]=b[j];b[j]=t}return b.slice(0,4)}
+var S=[
+{n:'스페이스바',d:'글자 사이를 띄워 줘요',h:'가장 길쭉한 키가 스페이스바예요. 마우스로 글자 사이를 콕 누르고 스페이스바를 눌러 보세요.',m:[
+['나는사과를좋아해요.','나는 사과를 좋아해요.'],['오늘은날씨가좋아요.','오늘은 날씨가 좋아요.'],['우리는학교에가요.','우리는 학교에 가요.'],['강아지가공원에서놀아요.','강아지가 공원에서 놀아요.'],
+['엄마와함께밥을먹어요.','엄마와 함께 밥을 먹어요.'],['친구와같이책을읽어요.','친구와 같이 책을 읽어요.'],['비가오면우산을써요.','비가 오면 우산을 써요.'],['나는아침에일찍일어나요.','나는 아침에 일찍 일어나요.'],
+['고양이가우유를마셔요.','고양이가 우유를 마셔요.'],['동생이그림을그려요.','동생이 그림을 그려요.'],['선생님께인사를해요.','선생님께 인사를 해요.'],['손을깨끗이씻어요.','손을 깨끗이 씻어요.']]},
+{n:'엔터',d:'줄을 바꿔 줘요',h:'문장이 끝나는 곳을 마우스로 콕 누르고 엔터를 누르면 다음 줄로 내려가요.',m:E([
+'사과가 맛있어요. 바나나도 맛있어요.','안녕하세요. 저는 민수예요.','아침에 일어났어요. 세수를 했어요. 밥을 먹었어요.','오늘은 맑아요. 하늘이 파래요.','강아지가 달려요. 고양이가 잠을 자요.','나는 학교에 가요. 친구를 만나요.',
+'비가 와요. 우산을 써요.','엄마가 요리해요. 맛있는 냄새가 나요.','책을 읽어요. 그림도 그려요.','손을 씻어요. 이를 닦아요.','꽃이 피었어요. 나비가 날아와요.'])},
+{n:'백스페이스',d:'글자를 하나씩 지워 줘요',h:'지울 글자 바로 뒤를 마우스로 콕 누르고 백스페이스를 눌러요. 누를 때마다 글자가 하나씩 지워져요.',m:[
+['나는 사과과를 좋아해요.','나는 사과를 좋아해요.'],['오늘은 날날씨가 좋아요.','오늘은 날씨가 좋아요.'],['강아지가 귀여워워요.','강아지가 귀여워요.'],['우리는 학교에에 가요.','우리는 학교에 가요.'],
+['엄마가 맛있는는 밥을 해요.','엄마가 맛있는 밥을 해요.'],['친구와 같이이 놀아요.','친구와 같이 놀아요.'],['나는 책을을 읽어요.','나는 책을 읽어요.'],['하늘이 파래래요.','하늘이 파래요.'],
+['동생이 웃어어요.','동생이 웃어요.'],['고양이가 잠을을 자요.','고양이가 잠을 자요.'],['비가 와와요.','비가 와요.'],['꽃이 예뻐뻐요.','꽃이 예뻐요.']]},
+{n:'한/영',d:'한글과 영어를 바꿔요',h:'한/영 키를 누르면 한글과 영어가 바뀌어요. 영어로 쓰려면 한/영 키를 한 번 누르고 쓰세요. (한/영 키가 없으면 Caps Lock이나 Shift+Space를 눌러 보세요.)',m:Y([
+['사과는','apple'],['고양이는','cat'],['강아지는','dog'],['바나나는','banana'],['우유는','milk'],['책은','book'],['해는','sun'],['달은','moon'],['버스는','bus'],['달걀은','egg'],['새는','bird'],['물고기는','fish'],['나무는','tree']])},
+{n:'시프트',d:'누른 채로 다른 키를 눌러요',h:'시프트를 꾹 누른 채로 다른 키를 눌러요. 느낌표(!)는 시프트+숫자 1, 물음표(?)는 시프트+/ 이에요.',m:X([
+'안녕하세요','와 신난다','만나서 반가워요','생일 축하해요','정말 멋져요','고마워요'],'!').concat(X(['뭐 해요','이름이 뭐예요','몇 살이에요','밥 먹었어요','어디 가요','누구예요'],'?'))},
+{n:'방향키',d:'커서를 움직여요',h:'← → ↑ ↓ 키로 깜빡이는 커서를 옮길 수 있어요. 옮긴 뒤에 글자를 쓰면 그 자리에 들어가요.',m:[
+['나는 먹어요.','나는 밥을 먹어요.'],['우리는 가요.','우리는 같이 가요.'],['나는 좋아해요.','나는 사과를 좋아해요.'],['오늘은 좋아요.','오늘은 날씨가 좋아요.'],
+['엄마는 웃어요.','엄마는 활짝 웃어요.'],['나는 읽어요.','나는 책을 읽어요.'],['강아지가 달려요.','강아지가 빨리 달려요.'],['동생이 노래해요.','동생이 크게 노래해요.'],
+['친구가 왔어요.','친구가 같이 왔어요.'],['비가 와요.','비가 많이 와요.'],['꽃이 폈어요.','꽃이 예쁘게 폈어요.'],['우리는 놀아요.','우리는 공원에서 놀아요.']]}
+];
+var $=function(i){return document.getElementById(i)};
+var s=0,m=0,done=false,comp=false,cleared=[];
+var ta=$('ta');
+function norm(t){return t.split('\n').map(function(x){return x.trim()}).filter(Boolean).join('\n')}
+function show(id){['start','play','end'].forEach(function(x){$(x).classList.toggle('hidden',x!==id)});$('bar').classList.toggle('hidden',id!=='play')}
+function chips(){var h='';S.forEach(function(_,i){h+='<button data-i="'+i+'" class="'+(i===s?'on ':'')+(cleared[i]?'done':'')+'" aria-label="'+(i+1)+'단계 '+S[i].n+'">'+(cleared[i]?'✓':i+1)+'</button>'});$('chips').innerHTML=h}
+function load(a,b){
+ if(b===0||!S[a].p)S[a].p=pick(S[a].m);
+ s=a;m=b;done=false;var st=S[s],q=st.p[m];
+ show('play');chips();
+ $('title').textContent=(s+1)+'단계 · '+st.n;$('desc').textContent=st.d;
+ $('goal').textContent=q[1];$('cnt').textContent=(m+1)+' / '+st.p.length+' 문제';
+ $('ok').classList.add('hidden');$('hintBox').classList.add('hidden');
+ ta.readOnly=false;ta.value=q[0];ta.focus();ta.setSelectionRange(q[0].length,q[0].length);
+}
+function hintText(){
+ var st=S[s],q=st.p[m],t=st.h;
+ if(s===5){var i=0;while(i<q[0].length&&q[0][i]===q[1][i])i++;t+=' 이 문제는 ← 키를 '+(q[0].length-i)+'번 눌러 보세요!'}
+ return t;
+}
+function check(){
+ if(done||comp)return;
+ if(norm(ta.value)===norm(S[s].p[m][1])){
+  done=true;ta.readOnly=true;ta.blur();
+  var last=m===S[s].p.length-1;
+  if(last){cleared[s]=true;chips()}
+  $('okMsg').textContent=last?'🎉 '+(s+1)+'단계 완료!':'🎉 미션 성공!';
+  $('next').textContent=last?(s===S.length-1?'끝! 🏆':'다음 단계 ▶'):'다음 문제 ▶';
+  $('ok').classList.remove('hidden');$('next').focus();
+ }
+}
+ta.addEventListener('input',function(e){if(!e.isComposing)check()});
+ta.addEventListener('compositionstart',function(){comp=true});
+ta.addEventListener('compositionend',function(){comp=false;check()});
+$('next').onclick=function(){
+ if(m<S[s].p.length-1)load(s,m+1);
+ else if(s<S.length-1)load(s+1,0);
+ else show('end');
+};
+$('go').onclick=function(){load(0,0)};
+$('again').onclick=function(){cleared=[];load(0,0)};
+$('chips').onclick=function(e){var b=e.target.closest('button');if(b)load(+b.dataset.i,0)};
+$('hintBtn').onclick=function(){var b=$('hintBox');if(b.classList.contains('hidden')){b.textContent='💡 '+hintText();b.classList.remove('hidden')}else b.classList.add('hidden')};
+var names={Space:'스페이스바',Enter:'엔터',NumpadEnter:'엔터',Backspace:'백스페이스',ShiftLeft:'시프트',ShiftRight:'시프트',Lang1:'한/영',Lang2:'한자',HangulMode:'한/영',CapsLock:'캡스락',ArrowLeft:'← 왼쪽',ArrowRight:'→ 오른쪽',ArrowUp:'↑ 위',ArrowDown:'↓ 아래'};
+document.addEventListener('keydown',function(e){
+ var n=names[e.code]||(e.key&&e.key.length===1?e.key:e.key==='Process'?'글자':e.key);
+ $('kbd').textContent='누른 키: '+n;
+});
+</script>
+</body>
+</html>
