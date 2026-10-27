@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>여행 짐 싸기 데이터 분석 - SUM 함수 & 막대그래프</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Pretendard Font -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f2fbf5',
+              100: '#e1f7e9',
+              200: '#c5eed5',
+              300: '#97deb8',
+              400: '#62c595',
+              500: '#3ba976',
+              600: '#2c895e',
+              700: '#256d4d',
+              800: '#20573f',
+              900: '#1c4835',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+      user-select: auto;
+    }
+
+    /* Target formula cell active selection */
+    .formula-target-selected {
+      outline: 3px solid #3ba976 !important;
+      background-color: #e1f7e9 !important;
+      animation: pulseGlow 1.5s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(59, 169, 118, 0.4); }
+      50% { box-shadow: 0 0 0 5px rgba(59, 169, 118, 0.15); }
+    }
+
+    /* Range picker states */
+    .range-start-pick {
+      background-color: #97deb8 !important;
+      color: #1c4835 !important;
+      font-weight: 700;
+      position: relative;
+    }
+
+    .range-highlight-cell {
+      background-color: #e1f7e9 !important;
+      outline: 2px dashed #3ba976;
+      outline-offset: -2px;
+    }
+
+    /* Solved formula cell */
+    .cell-solved {
+      background-color: #f2fbf5 !important;
+      border-color: #97deb8 !important;
+      color: #1c4835 !important;
+      font-weight: 700 !important;
+    }
+
+    /* Touch target comfort */
+    .touch-btn {
+      min-height: 44px;
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="bg-[#f7faf8] text-slate-800 antialiased min-h-screen p-3 md:p-6">
+
+<div class="max-w-[1400px] mx-auto flex flex-col gap-4">
+
+  <!-- Top Header Navigation -->
+  <header class="bg-white rounded-2xl shadow-sm border border-brand-200/70 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-brand-500 flex items-center justify-center text-white font-black text-xl shadow-xs">
+        fx
+      </div>
+      <div>
+        <h1 class="text-lg md:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          데이터 어드벤처: 여행 짐 싸기 데이터 분석
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-700 font-semibold border border-brand-200">표와 수식(SUM) · 데이터 시각화 탐구</span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium">수식을 활용해 합계를 계산하고 막대그래프로 데이터를 비교해 보세요</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-2">
+      <button onclick="resetAllData()" class="touch-btn px-4 py-2 text-xs md:text-sm font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 transition shadow-xs flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        전체 초기화
+      </button>
+      <button onclick="autoFillDemoNumbers()" class="touch-btn px-3.5 py-2 text-xs md:text-sm font-semibold rounded-xl bg-brand-50 border border-brand-200 text-brand-800 hover:bg-brand-100 active:bg-brand-200 transition">
+        예시 데이터 입력
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive 2-Step Educational Guidance Banner -->
+  <section id="stepGuideBanner" class="bg-white rounded-2xl p-4 shadow-sm border-2 border-brand-300 transition-all">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div id="stepIconBadge" class="w-9 h-9 rounded-full bg-brand-100 text-brand-700 font-bold flex items-center justify-center text-sm border border-brand-200 flex-shrink-0">
+          💡
+        </div>
+        <div>
+          <div id="guideStepTitle" class="text-xs font-bold text-brand-700 tracking-wide uppercase">수식 학습 가이드</div>
+          <div id="guideInstruction" class="text-sm md:text-base font-semibold text-slate-900">
+            합계를 구할 <span class="text-brand-700 font-bold bg-brand-50 px-2 py-0.5 rounded border border-brand-200">합계 칸</span>을 선택한 뒤 [SUM 함수 시작하기]를 눌러 범위를 지정해 보세요.
+          </div>
+        </div>
+      </div>
+
+      <!-- Context-Aware Dynamic Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btnStartSumWizard" onclick="startSumWizard()" disabled
+                class="touch-btn px-4 py-2 text-xs md:text-sm font-bold rounded-xl text-white bg-slate-300 cursor-not-allowed transition shadow-xs flex items-center gap-1.5">
+          <span>⚡</span>
+          <span id="btnStartSumText">SUM 함수 시작하기</span>
+        </button>
+        <button id="btnCancelWizard" onclick="cancelWizard()" class="touch-btn hidden px-3 py-2 text-xs md:text-sm font-medium rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-100 transition">
+          선택 취소
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Workspace Grid: Table (Left 7) and Visualizer (Right 5) -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+    
+    <!-- Left Column: Table with Readonly Formula Cells -->
+    <section class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-brand-200/80 p-4 md:p-5 flex flex-col gap-3">
+      
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+          <h2 class="text-sm font-bold text-slate-900">우리 가족 짐 목록표</h2>
+          <span class="text-xs text-slate-400 font-medium">수량을 입력하고 SUM 함수로 합계를 계산해 보세요</span>
+        </div>
+        <div class="text-xs text-brand-800 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-lg font-semibold">
+          스프레드시트 표 구조
+        </div>
+      </div>
+
+      <!-- Responsive Table Container -->
+      <div class="overflow-x-auto border border-brand-200 rounded-xl">
+        <table class="w-full text-center border-collapse min-w-[560px]">
+          <thead>
+            <!-- Spreadsheet Column Indicator: A-F -->
+            <tr class="bg-brand-50/70 text-[11px] font-bold text-brand-800 border-b border-brand-200">
+              <th class="w-10 py-1 border-r border-brand-200"></th>
+              <th class="py-1 border-r border-brand-200 font-mono">A</th>
+              <th class="py-1 border-r border-brand-200 font-mono">B</th>
+              <th class="py-1 border-r border-brand-200 font-mono">C</th>
+              <th class="py-1 border-r border-brand-200 font-mono">D</th>
+              <th class="py-1 border-r border-brand-200 font-mono">E</th>
+              <th class="py-1 font-mono text-brand-900 bg-brand-100/60">F</th>
+            </tr>
+            <!-- Header Row: 1 -->
+            <tr class="bg-slate-50 text-xs font-semibold text-slate-700 border-b border-brand-200">
+              <th class="py-3 border-r border-brand-200 font-mono text-xs text-brand-700">1</th>
+              <th class="py-3 px-2 border-r border-brand-200">구분</th>
+              <th class="py-3 px-2 border-r border-brand-200">옷</th>
+              <th class="py-3 px-2 border-r border-brand-200">위생용품</th>
+              <th class="py-3 px-2 border-r border-brand-200">건강/안전</th>
+              <th class="py-3 px-2 border-r border-brand-200">전자기기</th>
+              <th class="py-3 px-2 bg-brand-100/40 text-brand-900 font-bold">개인별 총합</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-brand-100 text-sm">
+            
+            <!-- Row 2: 아빠 -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="font-mono text-xs text-brand-700 font-bold bg-brand-50/50 border-r border-brand-200">2</td>
+              <td class="py-2 px-2 font-bold text-slate-800 border-r border-brand-200 bg-slate-50/30">아빠</td>
+              
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="B2">
+                <input type="number" id="B2" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="C2">
+                <input type="number" id="C2" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="D2">
+                <input type="number" id="D2" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="E2">
+                <input type="number" id="E2" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+
+              <!-- Formula Cell F2 (readonly so NO keyboard pops up on tablets!) -->
+              <td class="p-1 bg-amber-50/40">
+                <div id="cell-F2" onclick="selectFormulaCell('F2', 'B2:E2')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 3: 엄마 -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="font-mono text-xs text-brand-700 font-bold bg-brand-50/50 border-r border-brand-200">3</td>
+              <td class="py-2 px-2 font-bold text-slate-800 border-r border-brand-200 bg-slate-50/30">엄마</td>
+              
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="B3">
+                <input type="number" id="B3" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="C3">
+                <input type="number" id="C3" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="D3">
+                <input type="number" id="D3" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="E3">
+                <input type="number" id="E3" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+
+              <!-- Formula Cell F3 -->
+              <td class="p-1 bg-amber-50/40">
+                <div id="cell-F3" onclick="selectFormulaCell('F3', 'B3:E3')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 4: 누리 -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="font-mono text-xs text-brand-700 font-bold bg-brand-50/50 border-r border-brand-200">4</td>
+              <td class="py-2 px-2 font-bold text-slate-800 border-r border-brand-200 bg-slate-50/30">누리</td>
+              
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="B4">
+                <input type="number" id="B4" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="C4">
+                <input type="number" id="C4" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="D4">
+                <input type="number" id="D4" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="E4">
+                <input type="number" id="E4" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+
+              <!-- Formula Cell F4 -->
+              <td class="p-1 bg-amber-50/40">
+                <div id="cell-F4" onclick="selectFormulaCell('F4', 'B4:E4')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 5: 동생 -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="font-mono text-xs text-brand-700 font-bold bg-brand-50/50 border-r border-brand-200">5</td>
+              <td class="py-2 px-2 font-bold text-slate-800 border-r border-brand-200 bg-slate-50/30">동생</td>
+              
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="B5">
+                <input type="number" id="B5" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="C5">
+                <input type="number" id="C5" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="D5">
+                <input type="number" id="D5" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+              <td class="p-1 border-r border-brand-200 data-cell-box" data-cell="E5">
+                <input type="number" id="E5" value="" placeholder="0" min="0" max="99" oninput="onQuantityInput()" 
+                       class="w-full h-11 text-center font-semibold text-slate-800 rounded-lg bg-slate-50/60 focus:bg-white border border-transparent focus:border-brand-400 transition" />
+              </td>
+
+              <!-- Formula Cell F5 -->
+              <td class="p-1 bg-amber-50/40">
+                <div id="cell-F5" onclick="selectFormulaCell('F5', 'B5:E5')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 6: 물품별 합계 -->
+            <tr class="bg-brand-50/60 font-semibold border-t-2 border-brand-300">
+              <td class="font-mono text-xs text-brand-700 font-bold bg-brand-100/50 border-r border-brand-200">6</td>
+              <td class="py-2.5 px-2 font-bold text-brand-900 border-r border-brand-200 text-xs md:text-sm bg-brand-100/40">
+                물품별 합계
+              </td>
+
+              <!-- Formula Cell B6 -->
+              <td class="p-1 border-r border-brand-200 bg-amber-50/40">
+                <div id="cell-B6" onclick="selectFormulaCell('B6', 'B2:B5')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+
+              <!-- Formula Cell C6 -->
+              <td class="p-1 border-r border-brand-200 bg-amber-50/40">
+                <div id="cell-C6" onclick="selectFormulaCell('C6', 'C2:C5')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+
+              <!-- Formula Cell D6 -->
+              <td class="p-1 border-r border-brand-200 bg-amber-50/40">
+                <div id="cell-D6" onclick="selectFormulaCell('D6', 'D2:D5')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+
+              <!-- Formula Cell E6 -->
+              <td class="p-1 border-r border-brand-200 bg-amber-50/40">
+                <div id="cell-E6" onclick="selectFormulaCell('E6', 'E2:E5')" 
+                     class="touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition">
+                  <span class="formula-label text-[11px] font-mono text-amber-800 font-medium">선택하기</span>
+                  <span class="formula-val hidden font-bold text-slate-900 text-sm"></span>
+                </div>
+              </td>
+
+              <!-- Grand Total (F6) -->
+              <td class="p-1 bg-brand-100/60">
+                <div id="grandTotalVal" class="h-11 flex items-center justify-center font-black text-brand-900 text-base">
+                  -
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Quick Step Legend Footer -->
+      <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block"></span>
+          <span>합계 칸</span>
+          <span class="w-3 h-3 rounded bg-brand-200 border border-brand-400 inline-block ml-2"></span>
+          <span>지정된 범위</span>
+        </div>
+        <button onclick="autoSolveAllFormulas()" class="text-brand-700 hover:text-brand-900 font-bold underline">
+          모든 합계 한 번에 채우기
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Column: Bar Chart Visualization Area -->
+    <section class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-brand-200/80 p-4 md:p-5 flex flex-col gap-3.5">
+      
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+            <span class="text-brand-600">📊</span> 막대그래프 시각화
+          </h2>
+          <p class="text-xs text-slate-500">표의 데이터를 한눈에 비교할 수 있는 막대그래프로 변환합니다</p>
+        </div>
+
+        <!-- Mode Toggle Pill -->
+        <div class="inline-flex rounded-xl border border-brand-200 p-0.5 bg-brand-50 text-xs font-semibold">
+          <button id="viewBtnFamily" onclick="switchChartMode('family')" class="touch-btn px-2.5 py-1 rounded-lg bg-white shadow-xs text-brand-700 transition">
+            가족별 짐 수량 비교
+          </button>
+          <button id="viewBtnCategory" onclick="switchChartMode('category')" class="touch-btn px-2.5 py-1 rounded-lg text-slate-600 hover:text-brand-900 transition">
+            물품 종류별 합계 비교
+          </button>
+        </div>
+      </div>
+
+      <!-- Visualizer Action Button (Prominent) -->
+      <button id="btnRenderChart" onclick="onVisualizeClick()" class="touch-btn w-full py-3.5 px-4 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white font-bold text-sm md:text-base rounded-xl shadow-xs transition-all flex items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <span>막대그래프로 시각화하기</span>
+      </button>
+
+      <!-- Chart Display Area -->
+      <div class="relative w-full h-[320px] md:h-[350px] bg-[#fbfdfc] rounded-xl p-3 border border-brand-100 flex items-center justify-center overflow-hidden">
+        
+        <!-- Placeholder State (Initial) -->
+        <div id="chartPlaceholder" class="flex flex-col items-center justify-center text-center p-6 text-slate-400">
+          <div class="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center text-2xl mb-3">
+            🌱
+          </div>
+          <p class="font-bold text-slate-700 text-sm mb-1">그래프가 아직 생성되지 않았습니다</p>
+          <p class="text-xs text-slate-400 max-w-[270px]">
+            표에 숫자를 넣고 위의 <b class="text-brand-600 font-bold">[막대그래프로 시각화하기]</b> 버튼을 누르면 비교 그래프가 나타납니다.
+          </p>
+        </div>
+
+        <!-- Canvas Container -->
+        <div id="canvasWrapper" class="w-full h-full hidden">
+          <canvas id="barCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Realtime Insights Card -->
+      <div class="p-3 bg-brand-50/70 rounded-xl border border-brand-200/80 flex items-center justify-between text-xs">
+        <div>
+          <span class="text-brand-800 font-medium">우리 가족 전체 짐 총합</span>
+          <div id="summaryText" class="text-brand-900 font-bold text-sm">수식을 입력하여 합계를 구해보세요</div>
+        </div>
+        <div id="statusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+          합계 대기 중
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+</div>
+
+<script>
+  // State Management
+  let activeTargetCellId = null;  // e.g. 'F2'
+  let activeExpectedRange = null; // e.g. 'B2:E2'
+  let wizardStep = 0;             // 0: idle, 1: picking start, 2: picking end
+  let rangeStartCell = null;      // e.g. 'B2'
+  let rangeEndCell = null;        // e.g. 'E2'
+
+  let chartInstance = null;
+  let chartMode = 'family';       // 'family' or 'category'
+  let isChartRendered = false;
+
+  const formulaCells = {
+    F2: { expected: 'B2:E2', solved: false, formula: '', val: 0 },
+    F3: { expected: 'B3:E3', solved: false, formula: '', val: 0 },
+    F4: { expected: 'B4:E4', solved: false, formula: '', val: 0 },
+    F5: { expected: 'B5:E5', solved: false, formula: '', val: 0 },
+    B6: { expected: 'B2:B5', solved: false, formula: '', val: 0 },
+    C6: { expected: 'C2:C5', solved: false, formula: '', val: 0 },
+    D6: { expected: 'D2:D5', solved: false, formula: '', val: 0 },
+    E6: { expected: 'E2:E5', solved: false, formula: '', val: 0 }
+  };
+
+  const dataCellIds = [
+    'B2', 'C2', 'D2', 'E2',
+    'B3', 'C3', 'D3', 'E3',
+    'B4', 'C4', 'D4', 'E4',
+    'B5', 'C5', 'D5', 'E5'
+  ];
+
+  // Helper to read quantity
+  function getQuantity(cellId) {
+    const el = document.getElementById(cellId);
+    if (!el || el.value === '') return 0;
+    const v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  // --- Step 0: Student taps a formula cell (e.g. F2) ---
+  function selectFormulaCell(cellId, expectedRange) {
+    // If wizard was mid-step, cancel previous
+    if (wizardStep > 0) {
+      cancelWizard();
+    }
+
+    // Clear previous formula targets highlight
+    document.querySelectorAll('.formula-box').forEach(b => b.classList.remove('formula-target-selected'));
+
+    activeTargetCellId = cellId;
+    activeExpectedRange = expectedRange;
+
+    const box = document.getElementById(`cell-${cellId}`);
+    if (box) box.classList.add('formula-target-selected');
+
+    // Update Banner
+    const banner = document.getElementById('stepGuideBanner');
+    banner.className = "bg-white rounded-2xl p-4 shadow-sm border-2 border-brand-400 transition-all";
+
+    document.getElementById('stepIconBadge').innerText = "1️⃣";
+    document.getElementById('guideStepTitle').innerText = `선택된 셀: ${cellId}`;
+    document.getElementById('guideInstruction').innerHTML = 
+      `오른쪽의 <b class="text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">[SUM 함수 시작하기]</b> 버튼을 눌러 더할 데이터 범위를 지정하세요.`;
+
+    const startBtn = document.getElementById('btnStartSumWizard');
+    startBtn.disabled = false;
+    startBtn.className = "touch-btn px-4 py-2 text-xs md:text-sm font-bold rounded-xl text-white bg-brand-500 hover:bg-brand-600 active:bg-brand-700 cursor-pointer transition shadow-xs flex items-center gap-1.5";
+  }
+
+  // --- Step 1: Student clicks [SUM 함수 시작하기] ---
+  function startSumWizard() {
+    if (!activeTargetCellId) return;
+
+    wizardStep = 1;
+    rangeStartCell = null;
+    rangeEndCell = null;
+    clearRangeHighlights();
+
+    document.getElementById('btnStartSumWizard').classList.add('hidden');
+    document.getElementById('btnCancelWizard').classList.remove('hidden');
+
+    document.getElementById('stepIconBadge').innerText = "📍";
+    document.getElementById('guideStepTitle').innerText = `${activeTargetCellId} 합계 범위 지정 (1단계)`;
+    document.getElementById('guideInstruction').innerHTML = 
+      `더할 범위의 <b class="text-brand-700 underline">첫 번째 칸</b>을 선택하세요. (예: <code class="font-mono bg-brand-50 px-1 py-0.5 rounded border border-brand-200 font-bold">${activeExpectedRange.split(':')[0]}</code>)`;
+
+    enableCellPickingMode();
+  }
+
+  // Bind click on data cells only during picking mode
+  function enableCellPickingMode() {
+    document.querySelectorAll('.data-cell-box').forEach(box => {
+      box.onclick = (e) => {
+        // Prevent typing focus while in range picking wizard
+        e.preventDefault();
+        const coord = box.getAttribute('data-cell');
+        handlePickCell(coord);
+      };
+    });
+  }
+
+  function disableCellPickingMode() {
+    document.querySelectorAll('.data-cell-box').forEach(box => {
+      box.onclick = null;
+    });
+  }
+
+  // --- Touch handler for Step 1 & Step 2 ---
+  function handlePickCell(coord) {
+    if (wizardStep === 1) {
+      // Picked Start Cell
+      rangeStartCell = coord;
+      wizardStep = 2;
+
+      highlightRange(rangeStartCell, rangeStartCell);
+
+      document.getElementById('stepIconBadge').innerText = "🏁";
+      document.getElementById('guideStepTitle').innerText = `${activeTargetCellId} 합계 범위 지정 (2단계)`;
+      document.getElementById('guideInstruction').innerHTML = 
+        `시작 셀: <b class="text-brand-700 font-mono">${rangeStartCell}</b> 선택됨! 이제 더할 범위의 <b class="text-brand-700 underline">마지막 칸</b>을 선택하세요. (예: <code class="font-mono bg-brand-50 px-1 py-0.5 rounded border border-brand-200 font-bold">${activeExpectedRange.split(':')[1]}</code>)`;
+
+    } else if (wizardStep === 2) {
+      // Picked End Cell -> Finalize
+      rangeEndCell = coord;
+      completeFormulaWizard();
+    }
+  }
+
+  // --- Complete & Calculate =SUM(Start:End) ---
+  function completeFormulaWizard() {
+    highlightRange(rangeStartCell, rangeEndCell);
+
+    const formulaStr = `=SUM(${rangeStartCell}:${rangeEndCell})`;
+    const sumVal = computeRangeSum(rangeStartCell, rangeEndCell);
+
+    // Update formula store
+    formulaCells[activeTargetCellId].solved = true;
+    formulaCells[activeTargetCellId].formula = formulaStr;
+    formulaCells[activeTargetCellId].val = sumVal;
+
+    // Update DOM box
+    const box = document.getElementById(`cell-${activeTargetCellId}`);
+    box.classList.remove('formula-target-selected', 'border-amber-300', 'bg-amber-50/80');
+    box.classList.add('cell-solved');
+
+    const label = box.querySelector('.formula-label');
+    const valSpan = box.querySelector('.formula-val');
+
+    label.innerText = formulaStr;
+    label.className = "formula-label text-[10px] font-mono text-brand-700 font-semibold";
+
+    valSpan.innerText = sumVal;
+    valSpan.classList.remove('hidden');
+
+    // Reset Wizard Controls
+    disableCellPickingMode();
+    wizardStep = 0;
+
+    document.getElementById('btnStartSumWizard').classList.remove('hidden');
+    document.getElementById('btnCancelWizard').classList.add('hidden');
+    document.getElementById('btnStartSumWizard').disabled = true;
+    document.getElementById('btnStartSumWizard').className = "touch-btn px-4 py-2 text-xs md:text-sm font-bold rounded-xl text-white bg-slate-300 cursor-not-allowed transition shadow-xs flex items-center gap-1.5";
+
+    // Success banner
+    document.getElementById('stepIconBadge').innerText = "✅";
+    document.getElementById('guideStepTitle').innerText = `수식 계산 완료`;
+    document.getElementById('guideInstruction').innerHTML = 
+      `<b class="text-brand-800 font-mono">${activeTargetCellId}</b> 셀에 수식이 완성되었습니다: <code class="font-mono font-bold bg-brand-50 px-1 py-0.5 rounded border border-brand-200 text-brand-800">${formulaStr}</code> (합계: <b class="text-brand-900 text-base">${sumVal}</b>)`;
+
+    updateGrandTotal();
+
+    // If chart is already visible, update it
+    if (isChartRendered) {
+      updateChartData();
+    }
+  }
+
+  function computeRangeSum(start, end) {
+    const startCol = start.charAt(0);
+    const startRow = parseInt(start.substring(1), 10);
+    const endCol = end.charAt(0);
+    const endRow = parseInt(end.substring(1), 10);
+
+    const startC = Math.min(startCol.charCodeAt(0), endCol.charCodeAt(0));
+    const endC = Math.max(startCol.charCodeAt(0), endCol.charCodeAt(0));
+    const startR = Math.min(startRow, endRow);
+    const endR = Math.max(startRow, endRow);
+
+    let total = 0;
+    for (let c = startC; c <= endC; c++) {
+      const colChar = String.fromCharCode(c);
+      for (let r = startR; r <= endR; r++) {
+        total += getQuantity(`${colChar}${r}`);
+      }
+    }
+    return total;
+  }
+
+  function highlightRange(start, end) {
+    clearRangeHighlights();
+    if (!start) return;
+
+    const startCol = start.charAt(0);
+    const startRow = parseInt(start.substring(1), 10);
+    const endCol = (end || start).charAt(0);
+    const endRow = parseInt((end || start).substring(1), 10);
+
+    const startC = Math.min(startCol.charCodeAt(0), endCol.charCodeAt(0));
+    const endC = Math.max(startCol.charCodeAt(0), endCol.charCodeAt(0));
+    const startR = Math.min(startRow, endRow);
+    const endR = Math.max(startRow, endRow);
+
+    for (let c = startC; c <= endC; c++) {
+      const colChar = String.fromCharCode(c);
+      for (let r = startR; r <= endR; r++) {
+        const box = document.querySelector(`.data-cell-box[data-cell="${colChar}${r}"]`);
+        if (box) box.classList.add('range-highlight-cell');
+      }
+    }
+  }
+
+  function clearRangeHighlights() {
+    document.querySelectorAll('.range-highlight-cell').forEach(el => {
+      el.classList.remove('range-highlight-cell');
+    });
+  }
+
+  function cancelWizard() {
+    wizardStep = 0;
+    rangeStartCell = null;
+    rangeEndCell = null;
+    clearRangeHighlights();
+    disableCellPickingMode();
+
+    if (activeTargetCellId) {
+      const box = document.getElementById(`cell-${activeTargetCellId}`);
+      if (box && !formulaCells[activeTargetCellId].solved) {
+        box.classList.remove('formula-target-selected');
+      }
+    }
+
+    document.getElementById('btnStartSumWizard').classList.remove('hidden');
+    document.getElementById('btnCancelWizard').classList.add('hidden');
+    document.getElementById('btnStartSumWizard').disabled = true;
+    document.getElementById('btnStartSumWizard').className = "touch-btn px-4 py-2 text-xs md:text-sm font-bold rounded-xl text-white bg-slate-300 cursor-not-allowed transition shadow-xs flex items-center gap-1.5";
+
+    document.getElementById('stepIconBadge').innerText = "💡";
+    document.getElementById('guideStepTitle').innerText = "수식 학습 가이드";
+    document.getElementById('guideInstruction').innerHTML = 
+      "합계를 계산할 칸을 다시 선택해 보세요.";
+  }
+
+  // Live recalculate if quantities change
+  function onQuantityInput() {
+    Object.keys(formulaCells).forEach(id => {
+      if (formulaCells[id].solved && formulaCells[id].formula) {
+        const match = formulaCells[id].formula.match(/=SUM\(([A-E][2-5]):([A-E][2-5])\)/);
+        if (match) {
+          const newVal = computeRangeSum(match[1], match[2]);
+          formulaCells[id].val = newVal;
+          const box = document.getElementById(`cell-${id}`);
+          if (box) {
+            box.querySelector('.formula-val').innerText = newVal;
+          }
+        }
+      }
+    });
+
+    updateGrandTotal();
+
+    if (isChartRendered) {
+      updateChartData();
+    }
+  }
+
+  function updateGrandTotal() {
+    const f2 = formulaCells.F2.solved ? formulaCells.F2.val : 0;
+    const f3 = formulaCells.F3.solved ? formulaCells.F3.val : 0;
+    const f4 = formulaCells.F4.solved ? formulaCells.F4.val : 0;
+    const f5 = formulaCells.F5.solved ? formulaCells.F5.val : 0;
+    const total = f2 + f3 + f4 + f5;
+
+    const anySolved = Object.values(formulaCells).some(c => c.solved);
+    const allSolved = Object.values(formulaCells).every(c => c.solved);
+
+    const grandTotalEl = document.getElementById('grandTotalVal');
+    const badge = document.getElementById('statusBadge');
+    const summary = document.getElementById('summaryText');
+
+    if (anySolved) {
+      grandTotalEl.innerText = total;
+      summary.innerText = `현재 개인별 합계 총합: ${total}개`;
+    } else {
+      grandTotalEl.innerText = '-';
+      summary.innerText = '수식을 입력하여 합계를 구해보세요';
+    }
+
+    if (allSolved) {
+      badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-brand-100 text-brand-800 border border-brand-200";
+      badge.innerText = "모든 합계 완성!";
+    } else {
+      badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200";
+      badge.innerText = "합계 작성 중";
+    }
+  }
+
+  // Preset example values for quick classroom testing
+  function autoFillDemoNumbers() {
+    const demo = {
+      B2: 4, C2: 2, D2: 3, E2: 4,
+      B3: 5, C3: 4, D3: 2, E3: 2,
+      B4: 6, C4: 3, D4: 1, E4: 3,
+      B5: 3, C5: 2, D5: 2, E5: 1
+    };
+
+    Object.keys(demo).forEach(k => {
+      const el = document.getElementById(k);
+      if (el) el.value = demo[k];
+    });
+
+    onQuantityInput();
+  }
+
+  // Quick solve all formulas helper
+  function autoSolveAllFormulas() {
+    Object.keys(formulaCells).forEach(id => {
+      const expected = formulaCells[id].expected;
+      const [start, end] = expected.split(':');
+      const sum = computeRangeSum(start, end);
+
+      formulaCells[id].solved = true;
+      formulaCells[id].formula = `=SUM(${expected})`;
+      formulaCells[id].val = sum;
+
+      const box = document.getElementById(`cell-${id}`);
+      box.className = "touch-btn formula-box w-full h-11 rounded-lg border border-brand-300 bg-brand-50/90 cursor-pointer flex flex-col items-center justify-center transition cell-solved";
+      const label = box.querySelector('.formula-label');
+      const valSpan = box.querySelector('.formula-val');
+      label.innerText = `=SUM(${expected})`;
+      label.className = "formula-label text-[10px] font-mono text-brand-700 font-semibold";
+      valSpan.innerText = sum;
+      valSpan.classList.remove('hidden');
+    });
+
+    updateGrandTotal();
+    if (isChartRendered) updateChartData();
+  }
+
+  // Reset entire app
+  function resetAllData() {
+    dataCellIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+    Object.keys(formulaCells).forEach(id => {
+      formulaCells[id].solved = false;
+      formulaCells[id].formula = '';
+      formulaCells[id].val = 0;
+
+      const box = document.getElementById(`cell-${id}`);
+      box.className = "touch-btn formula-box w-full h-11 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100/60 cursor-pointer flex flex-col items-center justify-center transition";
+      const label = box.querySelector('.formula-label');
+      const valSpan = box.querySelector('.formula-val');
+      label.innerText = "선택하기";
+      label.className = "formula-label text-[11px] font-mono text-amber-800 font-medium";
+      valSpan.innerText = '';
+      valSpan.classList.add('hidden');
+    });
+
+    cancelWizard();
+    clearRangeHighlights();
+    document.getElementById('grandTotalVal').innerText = '-';
+
+    // Hide chart back to placeholder
+    document.getElementById('canvasWrapper').classList.add('hidden');
+    document.getElementById('chartPlaceholder').classList.remove('hidden');
+    isChartRendered = false;
+
+    updateGrandTotal();
+  }
+
+  // --- On-Demand Bar Chart Logic (Render Only Upon Button Click) ---
+
+  function onVisualizeClick() {
+    isChartRendered = true;
+    document.getElementById('chartPlaceholder').classList.add('hidden');
+    document.getElementById('canvasWrapper').classList.remove('hidden');
+
+    if (!chartInstance) {
+      initChart();
+    } else {
+      updateChartData();
+    }
+
+    const btn = document.getElementById('btnRenderChart');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = `
+      <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      </svg>
+      시각화 완료!
+    `;
+    setTimeout(() => {
+      btn.innerHTML = oldText;
+    }, 500);
+  }
+
+  function switchChartMode(mode) {
+    chartMode = mode;
+    const btnFamily = document.getElementById('viewBtnFamily');
+    const btnCategory = document.getElementById('viewBtnCategory');
+
+    if (mode === 'family') {
+      btnFamily.className = "touch-btn px-2.5 py-1 rounded-lg bg-white shadow-xs text-brand-700 transition";
+      btnCategory.className = "touch-btn px-2.5 py-1 rounded-lg text-slate-600 hover:text-brand-900 transition";
+    } else {
+      btnCategory.className = "touch-btn px-2.5 py-1 rounded-lg bg-white shadow-xs text-brand-700 transition";
+      btnFamily.className = "touch-btn px-2.5 py-1 rounded-lg text-slate-600 hover:text-brand-900 transition";
+    }
+
+    if (isChartRendered) {
+      updateChartData();
+    }
+  }
+
+  function getChartDataset() {
+    if (chartMode === 'family') {
+      return {
+        labels: ['옷', '위생용품', '건강/안전', '전자기기'],
+        datasets: [
+          {
+            label: '아빠',
+            data: [getQuantity('B2'), getQuantity('C2'), getQuantity('D2'), getQuantity('E2')],
+            backgroundColor: '#3ba976', // Sage green primary
+            borderRadius: 6
+          },
+          {
+            label: '엄마',
+            data: [getQuantity('B3'), getQuantity('C3'), getQuantity('D3'), getQuantity('E3')],
+            backgroundColor: '#f59e0b', // Warm amber
+            borderRadius: 6
+          },
+          {
+            label: '누리',
+            data: [getQuantity('B4'), getQuantity('C4'), getQuantity('D4'), getQuantity('E4')],
+            backgroundColor: '#06b6d4', // Soft cyan
+            borderRadius: 6
+          },
+          {
+            label: '동생',
+            data: [getQuantity('B5'), getQuantity('C5'), getQuantity('D5'), getQuantity('E5')],
+            backgroundColor: '#a855f7', // Soft purple
+            borderRadius: 6
+          }
+        ]
+      };
+    } else {
+      const b6 = formulaCells.B6.solved ? formulaCells.B6.val : computeRangeSum('B2', 'B5');
+      const c6 = formulaCells.C6.solved ? formulaCells.C6.val : computeRangeSum('C2', 'C5');
+      const d6 = formulaCells.D6.solved ? formulaCells.D6.val : computeRangeSum('D2', 'D5');
+      const e6 = formulaCells.E6.solved ? formulaCells.E6.val : computeRangeSum('E2', 'E5');
+
+      return {
+        labels: ['옷 합계', '위생용품 합계', '건강/안전 합계', '전자기기 합계'],
+        datasets: [
+          {
+            label: '물품별 총 짐 개수',
+            data: [b6, c6, d6, e6],
+            backgroundColor: ['#3ba976', '#62c595', '#97deb8', '#c5eed5'],
+            borderColor: '#2c895e',
+            borderWidth: 1,
+            borderRadius: 6
+          }
+        ]
+      };
+    }
+  }
+
+  function initChart() {
+    const ctx = document.getElementById('barCanvas').getContext('2d');
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: getChartDataset(),
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 12,
+              font: { size: 12, weight: '600', family: 'Pretendard' },
+              color: '#334155'
+            }
+          },
+          tooltip: {
+            bodyFont: { family: 'Pretendard' }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, font: { family: 'Pretendard' }, color: '#64748b' },
+            grid: { color: '#f1f5f9' }
+          },
+          x: {
+            ticks: { font: { family: 'Pretendard', weight: '600' }, color: '#334155' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  function updateChartData() {
+    if (!chartInstance) return;
+    const fresh = getChartDataset();
+    chartInstance.data.labels = fresh.labels;
+    chartInstance.data.datasets = fresh.datasets;
+    chartInstance.update();
+  }
+</script>
+
+</body>
+</html>
