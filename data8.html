@@ -1,0 +1,2082 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 맛집 분석단 - 의심스러운 리뷰를 찾아라!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 5px;
+        }
+
+        .container {
+            max-width: 1920px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 15px;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 1.6em;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            justify-items: center;
+        }
+
+        .stat {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            white-space: nowrap;
+        }
+
+        .screen {
+            display: none;
+            padding: 15px;
+            min-height: 500px;
+            animation: fadeIn 0.5s;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 입장 화면 */
+        .intro-screen {
+            text-align: center;
+            padding: 50px;
+        }
+
+        .intro-form {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            margin: 30px auto;
+        }
+
+        .intro-form input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: transform 0.3s;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-apply {
+            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            padding: 6px 16px;
+            font-size: 0.9em;
+        }
+
+        /* 훈련소 화면 */
+        .training-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .level-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+        }
+
+        .level-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .level-card.completed {
+            border-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .level-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .level-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        /* 실전 미션 레이아웃 */
+        .mission-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 15px;
+            height: calc(100vh - 140px);
+            min-height: 500px;
+            overflow: hidden;
+        }
+
+        /* AI 순위 패널 (왼쪽) */
+        .ranking-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .ranking-panel h3 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #667eea;
+            font-size: 1em;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            margin: 6px 0;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.5s;
+            cursor: pointer;
+        }
+
+        .ranking-item:hover {
+            transform: translateX(3px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .ranking-item.selected {
+            background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+            border: 2px solid #667eea;
+        }
+
+        .ranking-item .rank {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #667eea;
+            width: 35px;
+        }
+
+        .ranking-item .name {
+            flex: 1;
+            font-size: 0.9em;
+            padding: 0 8px;
+        }
+
+        .ranking-item .score {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+        }
+
+        /* 메인 콘텐츠 영역 (오른쪽) */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .restaurant-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .review-count {
+            background: #e0e0e0;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 리뷰 영역 */
+        .reviews-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+
+        .reviews-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .review-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            min-height: 100px;
+        }
+
+        .review-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .review-card.deleted {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .review-card.deleted .review-text {
+            text-decoration: line-through;
+            text-decoration-thickness: 3px;
+            text-decoration-color: #f44336;
+            text-decoration-style: double;
+        }
+
+        .review-card.deleted .review-header {
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+            text-decoration-color: #f44336;
+        }
+
+        .review-card.confirmed-fake {
+            background: #ffebee;
+            border-color: #f44336;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
+        .review-card.confirmed-real {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .review-date {
+            font-weight: 600;
+        }
+
+        .review-text {
+            font-size: 0.95em;
+            line-height: 1.4;
+            margin: 8px 0;
+        }
+
+        .review-rating {
+            color: #ffc107;
+            font-size: 1em;
+        }
+
+        .delete-button {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            background: #f44336;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .delete-button:hover {
+            transform: scale(1.1);
+            background: #d32f2f;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+
+        .restore-button {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            background: #4caf50;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1.3em;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .restore-button:hover {
+            transform: scale(1.1) rotate(45deg);
+            background: #388e3c;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+
+        .reason-tag {
+            background: #f44336;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            margin-top: 8px;
+        }
+
+        .missed-tag {
+            background: #ff9800;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            margin-top: 8px;
+        }
+
+        /* 힌트 박스 */
+        .hint-box {
+            background: #fff3cd;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ffc107;
+            font-size: 0.8em;
+        }
+
+        /* 결과 화면 */
+        .result-screen {
+            text-align: center;
+            padding: 50px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            margin: 30px auto;
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .badge:hover {
+            transform: scale(1.1);
+        }
+
+        .badge-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .badge-name {
+            font-weight: bold;
+        }
+
+        /* 네비게이션 */
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            text-align: center;
+            animation: fadeIn 0.3s;
+        }
+
+        /* 애니메이션 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        .pulse {
+            animation: pulse 0.5s;
+        }
+
+        /* 반응형 */
+        @media (max-width: 1000px) {
+            .mission-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .ranking-panel {
+                height: auto;
+                margin-bottom: 15px;
+                max-height: 200px;
+                overflow-y: auto;
+            }
+            
+            .main-content {
+                height: auto;
+            }
+            
+            .reviews-wrapper {
+                height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 2px;
+            }
+            
+            .container {
+                border-radius: 10px;
+            }
+            
+            h1 {
+                font-size: 1.3em;
+                margin-bottom: 5px;
+            }
+            
+            .stat {
+                font-size: 0.7em;
+                padding: 3px 6px;
+            }
+            
+            .screen {
+                padding: 10px;
+            }
+            
+            .reviews-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-bar {
+                flex-direction: column;
+                gap: 8px;
+                align-items: stretch;
+            }
+            
+            .restaurant-info {
+                justify-content: center;
+            }
+            
+            .action-buttons {
+                justify-content: center;
+            }
+            
+            .training-levels {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .intro-form {
+                padding: 20px;
+                margin: 20px auto;
+            }
+            
+            .ranking-panel {
+                padding: 10px;
+            }
+            
+            .ranking-item {
+                padding: 6px;
+                margin: 4px 0;
+            }
+            
+            .ranking-item .name {
+                font-size: 0.8em;
+            }
+            
+            .ranking-item .score {
+                font-size: 0.7em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.1em;
+            }
+            
+            .stat {
+                font-size: 0.6em;
+                padding: 2px 4px;
+            }
+            
+            .btn {
+                font-size: 0.8em;
+                padding: 6px 12px;
+            }
+            
+            .restaurant-name {
+                font-size: 1em;
+            }
+            
+            .review-count {
+                font-size: 0.7em;
+            }
+            
+            .reviews-container {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .review-card {
+                padding: 8px;
+                min-height: 80px;
+            }
+            
+            .delete-button, .restore-button {
+                width: 24px;
+                height: 24px;
+                font-size: 1em;
+            }
+            
+            .hint-box {
+                font-size: 0.7em;
+                padding: 6px;
+            }
+            
+            .modal-content {
+                margin: 10px;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🕵️ AI 맛집 분석단</h1>
+            <div class="stats-bar">
+                <div class="stat">👤 <span id="userName">탐정</span></div>
+                <div class="stat">🏅 점수: <span id="score">0</span></div>
+                <div class="stat">⏱️ <span id="timer">00:00</span></div>
+                <div class="stat">🔍 의심 리뷰: <span id="foundCount">0</span></div>
+            </div>
+        </header>
+
+        <!-- 입장 화면 -->
+        <div id="introScreen" class="screen active">
+            <div class="intro-screen">
+                <h2>🔍 의심스러운 리뷰를 찾아 진짜 맛집을 구하라!</h2>
+                <p style="font-size: 1.2em; color: #666; margin: 20px 0;">
+                    강릉 맛집 데이터베이스에 의심스러운 리뷰가 섞여있어요!<br>
+                    AI가 정확한 추천을 할 수 있도록 도와주세요!
+                </p>
+                <div class="intro-form">
+                    <input type="text" id="userNameInput" placeholder="이름을 입력하세요" maxlength="10">
+                    <button class="btn" onclick="startGame()">🕵️ 탐정 되기</button>
+                </div>
+                <div style="margin-top: 30px;">
+                    <button class="btn" style="background: #dc3545;" onclick="clearAllData()">🗑️ 데이터 초기화</button>
+                    <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
+                        저장된 진행 상황을 모두 삭제합니다
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 훈련소 화면 -->
+        <div id="trainingScreen" class="screen">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="margin: 0; flex: 1; text-align: center;">🎓 탐정 훈련소</h2>
+                <button class="btn" style="background: #6c757d; font-size: 0.8em; padding: 5px 10px;" onclick="clearAllData()">🗑️ 초기화</button>
+            </div>
+            <div id="trainingMenu">
+                <div class="training-levels">
+                    <div class="level-card" onclick="startTraining(1)" id="level1">
+                        <div class="level-icon">📝</div>
+                        <h3>Level 1</h3>
+                        <p>반복 패턴 찾기</p>
+                        <small>똑같은 문장 발견하기</small>
+                    </div>
+                    <div class="level-card" onclick="startTraining(2)" id="level2">
+                        <div class="level-icon">💬</div>
+                        <h3>Level 2</h3>
+                        <p>내용 부실 찾기</p>
+                        <small>구체성 없는 리뷰</small>
+                    </div>
+                    <div class="level-card" onclick="startTraining(3)" id="level3">
+                        <div class="level-icon">🕐</div>
+                        <h3>Level 3</h3>
+                        <p>시간 패턴 분석</p>
+                        <small>새벽시간대 리뷰 찾기</small>
+                    </div>
+                    <div class="level-card" onclick="startTraining(4)" id="level4">
+                        <div class="level-icon">📢</div>
+                        <h3>Level 4</h3>
+                        <p>마케팅 문구 감지</p>
+                        <small>광고성 표현 찾기</small>
+                    </div>
+                </div>
+                <div class="nav-buttons">
+                    <button id="missionStartBtn" class="btn" onclick="showMission()">실전 미션 시작 →</button>
+                </div>
+            </div>
+            <div id="trainingArea" style="display: none;">
+                <div class="hint-box" id="trainingHint"></div>
+                <div id="trainingReviews" class="reviews-container"></div>
+                <div class="nav-buttons">
+                    <button class="btn" onclick="backToTrainingMenu()">← 훈련소 메뉴로</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 실전 미션 화면 -->
+        <div id="missionScreen" class="screen">
+            <div class="mission-layout">
+                <!-- 왼쪽: AI 순위 패널 -->
+                <div class="ranking-panel">
+                    <h3>🤖 AI 추천 순위</h3>
+                    <div style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 8px; font-size: 0.9em;">
+                        <div>삭제된 리뷰: <span id="deletedCount">0</span>개</div>
+                        <div>현재 순위: 실시간 반영</div>
+                    </div>
+                    <div id="rankingContainer">
+                        <!-- 순위가 동적으로 표시됩니다 -->
+                    </div>
+                </div>
+
+                <!-- 오른쪽: 메인 콘텐츠 -->
+                <div class="main-content">
+                    <div class="action-bar">
+                        <div class="restaurant-info">
+                            <span class="restaurant-name" id="currentRestName">식당 선택</span>
+                            <span class="review-count" id="reviewCount">리뷰 0개</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn" style="background: #6c757d;" onclick="resetCurrentReviews()">리뷰 초기화</button>
+                        </div>
+                    </div>
+
+
+
+                    <div class="hint-box">
+                        💡 의심스러운 리뷰 판별 포인트<br>
+                        • <strong>작성 시점</strong>: 짧은 시간에 몰려있거나 새벽 시간대<br>
+                        • <strong>내용 분석</strong>: 구체성 없는 표현, 과도한 감탄사<br>
+                        • <strong>패턴</strong>: 똑같은 문장 반복, 광고성 문구<br>
+                        × 버튼으로 의심스러운 리뷰를 삭제하세요! (AI 순위 실시간 변경)
+                    </div>
+
+                    <div class="reviews-wrapper">
+                        <div id="reviewsContainer" class="reviews-container">
+                            <!-- 리뷰 카드들이 동적으로 생성됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 결과 화면 -->
+        <div id="resultScreen" class="screen">
+            <div class="result-screen">
+                <h2>🎉 미션 완료!</h2>
+                <div class="result-card">
+                    <h3>분석 성과</h3>
+                    <p style="font-size: 1.5em; margin: 20px 0;">
+                        총 점수: <span id="finalScore" style="color: #667eea; font-weight: bold;">0</span>점
+                    </p>
+                    <p>분석한 의심 리뷰: <span id="foundFakes">0</span>개</p>
+                    <p>소요 시간: <span id="finalTime">00:00</span></p>
+                    <br>
+                    <p style="color: #666; font-size: 0.9em;">
+                        💭 <em>각자의 관점과 기준에 따라 다른 결과가 나올 수 있습니다.</em>
+                    </p>
+                </div>
+                
+                <div class="badges" id="badgesContainer">
+                    <!-- 배지가 동적으로 표시됩니다 -->
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="btn" style="background: #6c757d;" onclick="backToTraining()">🎓 훈련소로 돌아가기</button>
+                    <button class="btn" style="background: #dc3545;" onclick="clearAllData()">🗑️ 전체 데이터 초기화</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">알림</h3>
+            <p id="modalMessage">메시지</p>
+        </div>
+    </div>
+
+    <script>
+        // 게임 상태 관리
+        let gameState = {
+            userName: '탐정',
+            score: 0,
+            accuracy: 0,
+            foundFakes: [],
+            completedLevels: [],
+            currentRestaurant: 0,
+            startTime: null,
+            elapsedTime: 0,
+            deletedReviews: new Set(),
+            confirmedFakes: new Set(),
+            confirmedReals: new Set()
+        };
+
+        // 타이머
+        let timerInterval = null;
+
+        // 진짜 리뷰 템플릿
+        const realTemplates = {
+            1: [ // 할매순두부 (중위권)
+                "순두부가 적당히 맛있어요. 무난한 편입니다.",
+                "짬뽕순두부 먹었는데 그럭저럭 괜찮았어요.",
+                "해물은 신선한데 간이 좀 센 것 같아요.",
+                "순두부 온도가 적당해서 좋았어요.",
+                "전복순두부는 괜찮은데 가격이 좀 비싸네요.",
+                "아이들 먹기에는 무난해요.",
+                "콩물이 진한 편이에요. 괜찮습니다.",
+                "버섯순두부 먹었는데 평범한 맛이에요.",
+                "김치는 적당히 익어서 괜찮았어요.",
+                "주차는 편한데 음식은 그저 그래요."
+            ],
+            2: [ // 강릉옛날순두부
+                "옛날식 순두부가 진짜 구수해요. 어머니 손맛 같아요.",
+                "김치순두부가 특히 맛있어요. 김치가 잘 익어서 감칠맛이 좋아요.",
+                "된장찌개도 함께 시켰는데 구수하고 진해요.",
+                "반찬으로 나온 나물들이 정말 깔끔해요.",
+                "순두부 안에 들어간 해물이 신선하고 많아요.",
+                "매운 정도를 조절할 수 있어서 좋았어요.",
+                "테이블이 넓어서 가족끼리 오기 좋아요.",
+                "전통적인 맛을 잘 살린 것 같아요.",
+                "가격도 합리적이고 양도 충분해요.",
+                "직원분들이 친절하고 설명도 잘 해주세요."
+            ],
+            4: [ // 바다향기 (중위권)
+                "물회가 그럭저럭 괜찮아요. 평범한 맛이에요.",
+                "회는 신선한데 특별하지는 않네요.",
+                "오징어 양이 적당해요. 무난합니다.",
+                "바다뷰는 좋은데 음식은 보통이에요.",
+                "대게는 괜찮았는데 가격이 좀 비싸요.",
+                "매운탕이 적당히 맛있어요.",
+                "전복죽은 무난한 편이에요.",
+                "생선구이가 평범해요. 나쁘지 않아요.",
+                "반찬은 깔끔한데 특별하지 않아요.",
+                "직원분들이 친절해요. 음식은 보통."
+            ],
+            5: [ // 솔향한정식 (중위권)
+                "상차림이 정갈한데 맛은 평범해요.",
+                "나물이 신선하긴 한데 특별하지 않아요.",
+                "예약해서 갔는데 음식은 그저 그래요.",
+                "가격대비 구성은 괜찮은 편이에요.",
+                "된장찌개가 무난해요. 평범한 맛.",
+                "불고기는 부드러운데 양념이 좀 아쉬워요.",
+                "전통차는 괜찮았어요.",
+                "룸이 있어서 좋은데 음식은 보통이에요.",
+                "재료는 신선한 편이에요.",
+                "어르신들이 좋아할 만한 무난한 맛이에요."
+            ]
+        };
+
+        // 고정된 리뷰 데이터
+        function generateReviews() {
+            const restaurants = [
+                {
+                    name: "할매순두부",
+                    type: "순두부",
+                    reviews: getFixedReviews(1)
+                },
+                {
+                    name: "강릉옛날순두부", 
+                    type: "순두부",
+                    reviews: getFixedReviews(2)
+                },
+                {
+                    name: "동해수산",
+                    type: "수산",
+                    reviews: getFixedReviews(3)
+                },
+                {
+                    name: "바다향기",
+                    type: "수산", 
+                    reviews: getFixedReviews(4)
+                },
+                {
+                    name: "솔향한정식",
+                    type: "한정식",
+                    reviews: getFixedReviews(5)
+                },
+                {
+                    name: "강릉한옥마을",
+                    type: "한정식",
+                    reviews: getFixedReviews(6)
+                }
+            ];
+            return restaurants;
+        }
+
+        // 완전히 고정된 리뷰 데이터 
+        function getFixedReviews(restaurantId) {
+            const baseId = restaurantId * 100;
+            
+            // 강릉한옥마을 (restaurantId = 6) - 평균 2.11점
+            if (restaurantId === 6) {
+                return [
+                    // 가짜 5점 리뷰 2개
+                    {id: baseId + 0, text: "좋아요", date: "2024-08-15 14:30", rating: 5, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 1, text: "괜찮네요", date: "2024-08-10 11:15", rating: 5, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    
+                    // 가짜 4점 리뷰 7개
+                    {id: baseId + 2, text: "좋아요", date: "2024-08-12 16:20", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 3, text: "괜찮아요", date: "2024-08-08 13:45", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 4, text: "나쁘지 않네요", date: "2024-08-05 12:30", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 5, text: "좋습니다", date: "2024-08-03 15:10", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 6, text: "괜찮네요", date: "2024-08-01 17:25", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 7, text: "좋아요!", date: "2024-07-30 14:40", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    {id: baseId + 8, text: "나쁘지 않아요", date: "2024-07-28 16:15", rating: 4, fake: true, reason: "의미없는 짧은 긍정 리뷰"},
+                    
+                    // 진짜 3점 리뷰 4개
+                    {id: baseId + 9, text: "그럭저럭 먹을만해요", date: "2024-08-14 18:20", rating: 3, fake: false},
+                    {id: baseId + 10, text: "그냥 그래요. 특별하지 않네요", date: "2024-08-11 12:45", rating: 3, fake: false},
+                    {id: baseId + 11, text: "보통이에요. 나쁘지도 좋지도 않고", date: "2024-08-06 19:10", rating: 3, fake: false},
+                    {id: baseId + 12, text: "그럭저럭이네요. 가격 생각하면 이 정도?", date: "2024-08-02 13:30", rating: 3, fake: false},
+                    
+                    // 진짜 1-2점 리뷰 37개 (이하 일부만 표시)
+                    {id: baseId + 13, text: "음식이 너무 짜요. 간이 세서 물을 계속 마셨어요.", date: "2024-08-18 20:15", rating: 1, fake: false},
+                    {id: baseId + 14, text: "한정식이라고 하기엔 반찬 가짓수가 너무 적어요.", date: "2024-08-17 19:30", rating: 2, fake: false},
+                    {id: baseId + 15, text: "가격 대비 양이 적어요. 배가 안 찼습니다.", date: "2024-08-16 18:45", rating: 1, fake: false},
+                    {id: baseId + 16, text: "전통 한옥 분위기는 좋은데 음식이 아쉬워요.", date: "2024-08-13 17:20", rating: 2, fake: false},
+                    {id: baseId + 17, text: "예약하고 갔는데 대기가 길었어요. 시간 관리가 안 되는 것 같아요.", date: "2024-08-09 16:35", rating: 1, fake: false},
+                    {id: baseId + 18, text: "된장찌개가 짜고 김치도 너무 신맛이 강해요.", date: "2024-08-07 15:50", rating: 2, fake: false},
+                    {id: baseId + 19, text: "직원분이 불친절하진 않았지만 서비스가 늦어요.", date: "2024-08-04 14:25", rating: 1, fake: false},
+                    // ... 나머지 30개는 모두 1-2점으로 구성
+                ].concat(
+                    Array.from({length: 30}, (_, i) => ({
+                        id: baseId + 20 + i,
+                        text: [
+                            "룸 사용료가 따로 있다는 걸 미리 말해주지 않았어요.",
+                            "주차장이 좁아서 차 빼기가 힘들었어요.",
+                            "음식이 미지근하게 나왔어요. 따뜻했으면 더 좋았을 텐데.",
+                            "반찬 리필이 안 된다고 하네요. 좀 아쉬워요.",
+                            "화장실이 한옥 특성상 추워요. 겨울엔 좀 불편해요.",
+                            "메뉴 설명이 부족해서 뭘 시킬지 모르겠더라고요.",
+                            "아이 의자가 없어서 가족 식사하기 불편했어요.",
+                            "밥이 조금 질었어요. 갓지은 밥이었으면 좋겠네요.",
+                            "나물이 좀 질겨서 먹기 힘들었어요.",
+                            "국물 요리가 미지근해요. 뜨겁게 해주세요.",
+                            "한옥 구조상 소음이 잘 들려요. 조용히 식사하기 어려워요.",
+                            "가격이 비싼 편인데 맛이 그에 비해 아쉬워요.",
+                            "테이블이 낮아서 다리가 아파요. 의자가 있었으면 좋겠어요.",
+                            "계절 메뉴라고 했는데 재료가 신선하지 않았어요.",
+                            "예약 취소 규정이 까다로워요. 미리 알려주세요.",
+                            "단체 손님이 있으면 너무 시끄러워요.",
+                            "에어컨이 잘 안 틀어져서 여름에 더웠어요.",
+                            "음식 간이 전체적으로 밍밍해요. 좀 더 맛깔나게 해주세요.",
+                            "불고기가 좀 질겨요. 더 부드럽게 조리해주세요.",
+                            "채소 위주라서 남성분들은 배가 안 찰 것 같아요.",
+                            "전통차가 너무 연해요. 진하게 우려주세요.",
+                            "식기가 좀 낡았어요. 교체가 필요할 것 같아요.",
+                            "메뉴판이 헷갈려요. 더 명확하게 써주세요.",
+                            "포장이 안 된다고 하네요. 남은 음식이 아까워요.",
+                            "카드 결제 수수료를 따로 받네요. 미리 알려주세요.",
+                            "주차 공간이 협소해서 대형차는 주차하기 어려워요.",
+                            "음식 나오는 시간이 너무 오래 걸려요.",
+                            "찬 음식이 많아서 겨울에는 좀 아쉬워요.",
+                            "한옥 특성상 난방이 잘 안 돼요. 추워요.",
+                            "가족 단위보다는 어른들만 오기 좋을 것 같아요."
+                        ][i % 30],
+                        date: `2024-0${Math.floor((30-i)/10) + 7}-${String(30-i).padStart(2, '0')} ${12 + (i % 8)}:${(i * 7) % 60}`,
+                        rating: (i % 2) + 1, // 1-2점 번갈아가며
+                        fake: false
+                    }))
+                );
+            }
+            
+            // 동해수산 (restaurantId = 3) - 평균 2.55점
+            if (restaurantId === 3) {
+                return [
+                    // 진짜 3점 리뷰 5개
+                    {id: baseId + 0, text: "그럭저럭 먹을만해요. 회도 괜찮고 물회도 나쁘지 않았어요.", date: "2024-08-18 18:30", rating: 3, fake: false},
+                    {id: baseId + 1, text: "보통 수준이네요. 특별하지는 않지만 나쁘지도 않아요.", date: "2024-08-15 12:15", rating: 3, fake: false},
+                    {id: baseId + 2, text: "가격 생각하면 적당한 것 같아요. 맛은 평범한 편입니다.", date: "2024-08-12 16:45", rating: 3, fake: false},
+                    {id: baseId + 3, text: "무난한 수산집이에요. 회가 신선하긴 한데 감동적이지는 않네요.", date: "2024-08-10 14:20", rating: 3, fake: false},
+                    {id: baseId + 4, text: "그냥저냥 괜찮아요. 다시 올지는 모르겠지만 나쁘지 않았어요.", date: "2024-08-08 11:30", rating: 3, fake: false},
+                    
+                    // 가짜 1-2점 리뷰 30개 (과도하게 상세한 부정적 리뷰)
+                    {id: baseId + 5, text: "회가 완전히 상했어요. 냄새부터 이상했는데 먹고 나서 배탈이 3일 동안 계속됐습니다. 병원비만 20만원 나왔어요. 사장님이 사과는커녕 오히려 화를 내더라고요. 절대 가지 마세요.", date: "2024-08-17 03:15", rating: 1, fake: true, reason: "과도하게 상세한 부정적 리뷰"},
+                    {id: baseId + 6, text: "주방에서 바퀴벌레 나오는 거 직접 봤습니다. 그런데도 음식을 그대로 내주더라고요. 위생 관념이 전혀 없어요. 신고하려고 사진도 찍었는데 사장이 와서 삭제하라고 협박했어요.", date: "2024-08-16 02:45", rating: 2, fake: true, reason: "과도하게 상세한 부정적 리뷰"},
+                    {id: baseId + 7, text: "가격이 말도 안 돼요. 물회 하나에 4만원이라니... 다른 곳의 두 배입니다. 그것도 회는 몇 점 안 들어있고 채소만 가득해요. 완전 바가지 상혼입니다.", date: "2024-08-14 04:20", rating: 1, fake: true, reason: "과도하게 상세한 부정적 리뷰"},
+                    // ... 나머지 27개는 모두 1-2점 가짜 리뷰
+                ].concat(
+                    Array.from({length: 27}, (_, i) => ({
+                        id: baseId + 8 + i,
+                        text: [
+                            "직원 태도가 최악이에요. 주문하자마자 짜증내고, 반찬 리필 요청했더니 돈 더 내라고 하더라고요.",
+                            "음식이 나오는데 2시간 걸렸어요. 그것도 차갑게 식어서... 다시 데워달라고 했더니 전자레인지에 돌려서 주더라고요.",
+                            "주차장에서 차 긁혔는데 사장이 모른다고 발뺌해요. CCTV 확인해달라고 했더니 고장났다고 하고...",
+                            "예약하고 갔는데 자리가 없다고 하더라고요. 그러면서 웨이팅 2시간이래요. 예약 시스템이 뭔 의미인지...",
+                            "화장실이 너무 더러워서 이용할 수가 없었어요. 변기는 막혀있고 휴지도 없고..."
+                        ][i % 5],
+                        date: `2024-0${Math.floor((27-i)/10) + 7}-${String(27-i).padStart(2, '0')} ${(i % 12) + 10}:${(i * 13) % 60}`,
+                        rating: (i % 2) + 1,
+                        fake: true,
+                        reason: "과도하게 상세한 부정적 리뷰"
+                    }))
+                ).concat(
+                    // 진짜 4-5점 리뷰 15개
+                    [
+                        {id: baseId + 35, text: "회가 정말 신선하고 맛있어요. 사시미도 두툼하게 썰어주시고 좋았습니다.", date: "2024-08-19 19:15", rating: 4, fake: false},
+                        {id: baseId + 36, text: "물회 국물이 시원하고 깔끔해요. 여름에 먹기 딱 좋네요.", date: "2024-08-18 20:30", rating: 5, fake: false},
+                        {id: baseId + 37, text: "가격이 좀 비싸긴 하지만 그만큼 맛은 보장돼요. 특별한 날 오기 좋아요.", date: "2024-08-16 18:45", rating: 4, fake: false},
+                        {id: baseId + 38, text: "매운탕이 얼큰하고 맛있어요. 술안주로 최고입니다.", date: "2024-08-14 17:20", rating: 5, fake: false},
+                        {id: baseId + 39, text: "직원분들이 친절하게 회 써는 법도 알려주셨어요.", date: "2024-08-12 16:35", rating: 4, fake: false},
+                        {id: baseId + 40, text: "바다뷰가 있어서 분위기가 좋아요. 데이트 코스로 추천!", date: "2024-08-10 15:50", rating: 5, fake: false},
+                        {id: baseId + 41, text: "전복죽이 진짜 고소하고 맛있어요. 해장용으로 딱이에요.", date: "2024-08-08 14:25", rating: 4, fake: false},
+                        {id: baseId + 42, text: "생선구이가 비리지 않고 담백해요. 아이들도 잘 먹더라고요.", date: "2024-08-06 13:40", rating: 5, fake: false},
+                        {id: baseId + 43, text: "반찬도 정갈하게 나오고 깔끔해요. 재방문 의사 있습니다.", date: "2024-08-04 12:55", rating: 4, fake: false},
+                        {id: baseId + 44, text: "주차 공간도 넓고 접근성이 좋아요. 가족 모임하기 좋습니다.", date: "2024-08-02 11:30", rating: 5, fake: false},
+                        {id: baseId + 45, text: "회 종류가 다양해서 선택의 폭이 넓어요.", date: "2024-07-31 10:45", rating: 4, fake: false},
+                        {id: baseId + 46, text: "물회 양이 정말 푸짐해요. 둘이 먹어도 배불러요.", date: "2024-07-29 19:20", rating: 5, fake: false},
+                        {id: baseId + 47, text: "신선한 해산물을 합리적인 가격에 먹을 수 있어요.", date: "2024-07-27 18:35", rating: 4, fake: false},
+                        {id: baseId + 48, text: "사장님이 직접 추천해주신 메뉴가 정말 맛있었어요.", date: "2024-07-25 17:50", rating: 5, fake: false},
+                        {id: baseId + 49, text: "바다 근처라 정말 신선한 해산물을 맛볼 수 있어요.", date: "2024-07-23 16:15", rating: 4, fake: false}
+                    ]
+                );
+            }
+            
+            // 강릉옛날순두부 (restaurantId = 2) - 가짜 1등 → 진짜 꼴찌 (4.16점 → 1.5점)
+            if (restaurantId === 2) {
+                return [
+                    // 가짜 5점 리뷰 38개 (대량의 가짜 고평점으로 1등 만들기)
+                    {id: baseId + 0, text: "맛있어요", date: "2024-08-19 14:30", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 1, text: "최고!", date: "2024-08-19 14:32", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 2, text: "굿굿!", date: "2024-08-19 14:35", rating: 5, fake: true, reason: "의미없는 표현"},
+                    {id: baseId + 3, text: "JMT!", date: "2024-08-19 14:40", rating: 5, fake: true, reason: "과도한 은어"},
+                    {id: baseId + 4, text: "좋아요", date: "2024-08-18 03:15", rating: 5, fake: true, reason: "너무 짧음, 새벽 시간"},
+                    {id: baseId + 5, text: "완전 맛집!!", date: "2024-08-18 03:18", rating: 5, fake: true, reason: "과장된 표현, 새벽 시간"},
+                    {id: baseId + 6, text: "대박", date: "2024-08-18 03:20", rating: 5, fake: true, reason: "너무 짧음, 새벽 시간"},
+                    {id: baseId + 7, text: "최고최고", date: "2024-08-17 14:00", rating: 5, fake: true, reason: "의미없는 반복"},
+                    {id: baseId + 8, text: "굿", date: "2024-08-17 14:05", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 9, text: "강추!", date: "2024-08-17 14:10", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 10, text: "맛집인정", date: "2024-08-16 04:20", rating: 5, fake: true, reason: "클리셰 표현, 새벽 시간"},
+                    {id: baseId + 11, text: "여기 진짜 맛있어요!!", date: "2024-08-16 04:25", rating: 5, fake: true, reason: "과장된 표현, 새벽 시간"},
+                    {id: baseId + 12, text: "존맛!", date: "2024-08-15 14:15", rating: 5, fake: true, reason: "과도한 은어"},
+                    {id: baseId + 13, text: "좋아요!", date: "2024-08-15 14:20", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 14, text: "최고의 맛!", date: "2024-08-14 14:30", rating: 5, fake: true, reason: "과장된 표현"},
+                    {id: baseId + 15, text: "맛있음", date: "2024-08-14 14:35", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 16, text: "좋네요", date: "2024-08-13 05:15", rating: 5, fake: true, reason: "너무 짧음, 새벽 시간"},
+                    {id: baseId + 17, text: "괜찮아요", date: "2024-08-13 05:20", rating: 5, fake: true, reason: "너무 짧음, 새벽 시간"},
+                    {id: baseId + 18, text: "대만족", date: "2024-08-12 14:25", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 19, text: "굿굿굿", date: "2024-08-12 14:30", rating: 5, fake: true, reason: "의미없는 반복"},
+                    {id: baseId + 20, text: "맛있어요!!", date: "2024-08-11 14:15", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 21, text: "최고에요", date: "2024-08-11 14:20", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 22, text: "좋음", date: "2024-08-10 14:25", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 23, text: "맛집 맞네요", date: "2024-08-10 14:30", rating: 5, fake: true, reason: "클리셰 표현"},
+                    {id: baseId + 24, text: "강추강추", date: "2024-08-09 14:35", rating: 5, fake: true, reason: "의미없는 반복"},
+                    {id: baseId + 25, text: "좋았어요", date: "2024-08-09 14:40", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 26, text: "맛나요", date: "2024-08-08 14:45", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 27, text: "완전 맛있음", date: "2024-08-08 14:50", rating: 5, fake: true, reason: "과장된 표현"},
+                    {id: baseId + 28, text: "대박맛집", date: "2024-08-07 14:55", rating: 5, fake: true, reason: "클리셰 표현"},
+                    {id: baseId + 29, text: "좋아요~", date: "2024-08-07 15:00", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 30, text: "최고!", date: "2024-08-06 15:05", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 31, text: "굿!", date: "2024-08-06 15:10", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 32, text: "맛있네요", date: "2024-08-05 15:15", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 33, text: "좋음!", date: "2024-08-05 15:20", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 34, text: "맛집인정!", date: "2024-08-04 15:25", rating: 5, fake: true, reason: "클리셰 표현"},
+                    {id: baseId + 35, text: "완전 좋아요", date: "2024-08-04 15:30", rating: 5, fake: true, reason: "과장된 표현"},
+                    {id: baseId + 36, text: "대만족!!", date: "2024-08-03 15:35", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 37, text: "최고의 맛집", date: "2024-08-03 15:40", rating: 5, fake: true, reason: "과장된 표현"},
+                    
+                    // 진짜 1-2점 리뷰 12개 (실제 품질 반영)
+                    {id: baseId + 38, text: "순두부가 좀 짜고 콩 냄새가 이상해요.", date: "2024-08-02 18:30", rating: 1, fake: false},
+                    {id: baseId + 39, text: "오래된 기름 냄새가 나고 맛이 별로예요.", date: "2024-08-01 17:45", rating: 2, fake: false},
+                    {id: baseId + 40, text: "가격에 비해 양도 적고 맛도 그저 그래요.", date: "2024-07-31 16:20", rating: 1, fake: false},
+                    {id: baseId + 41, text: "순두부가 너무 묽어서 아쉬웠어요.", date: "2024-07-30 15:35", rating: 2, fake: false},
+                    {id: baseId + 42, text: "김치가 너무 시고 짜서 먹기 힘들었어요.", date: "2024-07-29 14:50", rating: 1, fake: false},
+                    {id: baseId + 43, text: "직원분이 불친절하고 서비스가 좋지 않아요.", date: "2024-07-28 13:25", rating: 2, fake: false},
+                    {id: baseId + 44, text: "위생상태가 의심스러워요. 테이블도 끈적해요.", date: "2024-07-27 12:40", rating: 1, fake: false},
+                    {id: baseId + 45, text: "옛날순두부라고 하기엔 맛이 영 아니에요.", date: "2024-07-26 11:55", rating: 2, fake: false},
+                    {id: baseId + 46, text: "재료가 신선하지 않은 것 같아요.", date: "2024-07-25 10:30", rating: 1, fake: false},
+                    {id: baseId + 47, text: "한 번 가보고 다시는 안 갈 것 같아요.", date: "2024-07-24 19:15", rating: 2, fake: false},
+                    {id: baseId + 48, text: "순두부가 비리고 맛이 이상했어요.", date: "2024-07-23 18:20", rating: 1, fake: false},
+                    {id: baseId + 49, text: "기대했는데 정말 실망스러웠어요.", date: "2024-07-22 17:30", rating: 2, fake: false}
+                ];
+            }
+            
+            // 중위권 식당들 (restaurantId 1, 4, 5) - 안정적 중위권 (3.4점)
+            if ([1, 4, 5].includes(restaurantId)) {
+                const middleReviews = [
+                    // 가짜 5점 리뷰 10개
+                    {id: baseId + 0, text: "맛있어요", date: "2024-08-19 14:30", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 1, text: "최고!", date: "2024-08-19 14:32", rating: 5, fake: true, reason: "구체성 없음"},
+                    {id: baseId + 2, text: "굿굿!", date: "2024-08-19 14:35", rating: 5, fake: true, reason: "의미없는 표현"},
+                    {id: baseId + 3, text: "완전 맛있어요!!", date: "2024-08-18 03:15", rating: 5, fake: true, reason: "과장된 표현, 새벽 시간"},
+                    {id: baseId + 4, text: "대박 맛집!!", date: "2024-08-18 03:18", rating: 5, fake: true, reason: "클리셰 표현, 새벽 시간"},
+                    {id: baseId + 5, text: "JMT!!", date: "2024-08-17 14:00", rating: 5, fake: true, reason: "과도한 은어"},
+                    {id: baseId + 6, text: "좋아요!", date: "2024-08-17 14:05", rating: 5, fake: true, reason: "너무 짧음"},
+                    {id: baseId + 7, text: "맛집인정", date: "2024-08-16 04:20", rating: 5, fake: true, reason: "클리셰 표현, 새벽 시간"},
+                    {id: baseId + 8, text: "강추!", date: "2024-08-16 04:25", rating: 5, fake: true, reason: "구체성 없음, 새벽 시간"},
+                    {id: baseId + 9, text: "최고의 맛!", date: "2024-08-15 14:15", rating: 5, fake: true, reason: "과장된 표현"}
+                ];
+                
+                // 진짜 3점 리뷰 40개
+                const realReviewsForRestaurant = realTemplates[restaurantId] || realTemplates[1];
+                for (let i = 0; i < 40; i++) {
+                    middleReviews.push({
+                        id: baseId + 10 + i,
+                        text: realReviewsForRestaurant[i % realReviewsForRestaurant.length],
+                        date: `2024-0${Math.floor((40-i)/15) + 6}-${String(40-i).padStart(2, '0')} ${12 + (i % 10)}:${(i * 7) % 60}`,
+                        rating: 3,
+                        fake: false
+                    });
+                }
+                
+                return middleReviews;
+            }
+        }
+
+        // 전역 레스토랑 데이터
+        let restaurantData = generateReviews();
+
+        // 훈련 데이터
+        const trainingData = {
+            1: {
+                title: "반복 패턴 찾기",
+                instruction: "똑같거나 비슷한 문장이 반복되는 리뷰를 찾으세요!",
+                reviews: [
+                    {id: 101, text: "여기 음식 정말 맛있어요! 강추합니다!", fake: false},
+                    {id: 102, text: "맛있어요 맛있어요 맛있어요", fake: true},
+                    {id: 103, text: "순두부가 부드럽고 고소해요", fake: false},
+                    {id: 104, text: "맛있어요 맛있어요 맛있어요", fake: true},
+                    {id: 105, text: "매운맛이 적당하고 좋았습니다", fake: false}
+                ]
+            },
+            2: {
+                title: "구체성 부족 찾기",
+                instruction: "너무 짧거나 구체적인 내용이 없는 가짜 리뷰를 찾으세요!",
+                reviews: [
+                    {id: 201, text: "해물이 신선하고 국물이 시원했어요", date: "14:30", fake: false},
+                    {id: 202, text: "굿!", date: "13:15", fake: true},
+                    {id: 203, text: "가족과 함께 왔는데 모두 만족했습니다", date: "18:20", fake: false},
+                    {id: 204, text: "최고!", date: "15:45", fake: true},
+                    {id: 205, text: "짬뽕순두부가 독특하고 맛있었어요", date: "12:00", fake: false}
+                ]
+            },
+            3: {
+                title: "시간 패턴 분석",
+                instruction: "새벽시간대(02:00~05:00)에 올라온 의심스러운 리뷰를 찾으세요!",
+                reviews: [
+                    {id: 301, text: "해물이 신선하고 국물이 시원해요. 재방문 의사 있습니다.", date: "13:30", fake: false},
+                    {id: 302, text: "맛있어요! 완전 추천합니다!", date: "03:15", fake: true},
+                    {id: 303, text: "양념이 적당하고 밥도 맛있었어요. 주차도 편리합니다.", date: "19:45", fake: false},
+                    {id: 304, text: "여기 진짜 맛집이네요. 좋아요!", date: "04:32", fake: true},
+                    {id: 305, text: "가족과 함께 왔는데 모두 만족했습니다. 서비스도 좋고요.", date: "18:20", fake: false},
+                    {id: 306, text: "최고의 맛! 강추강추!", date: "02:47", fake: true}
+                ]
+            },
+            4: {
+                title: "마케팅 문구 감지",
+                instruction: "광고 카피 같은 부자연스러운 마케팅 문구를 찾으세요!",
+                reviews: [
+                    {id: 401, text: "아이들도 잘 먹을 수 있는 순한 맛이에요. 가족 식사 추천합니다.", date: "12:30", fake: false},
+                    {id: 402, text: "🔥핫플레이스 인정🔥 인스타 맛집으로 완전 유명해질 예감! 지금 당장 가세요!", date: "15:20", fake: true},
+                    {id: 403, text: "음식이 따뜻하게 잘 나왔어요. 직원분도 친절하셨습니다.", date: "19:10", fake: false},
+                    {id: 404, text: "💯완벽한 맛💯 아는 사람만 아는 숨은 진주! 셀럽들도 몰래 다니는 그 맛집!", date: "14:45", fake: true},
+                    {id: 405, text: "가격이 합리적이고 양도 충분해요. 재방문할 의향 있습니다.", date: "17:30", fake: false},
+                    {id: 406, text: "⭐️인생맛집 등극⭐️ 미슐랭 가이드북에 올라도 될 수준! 예약 필수 핫플!", date: "13:15", fake: true}
+                ]
+            }
+        };
+
+        // 게임 시작
+        function startGame() {
+            const name = document.getElementById('userNameInput').value.trim();
+            if (!name) {
+                showModal('알림', '이름을 입력해주세요!');
+                return;
+            }
+            
+            gameState.userName = name;
+            gameState.startTime = Date.now();
+            gameState.elapsedTime = 0;
+            document.getElementById('userName').textContent = name;
+            
+            // 훈련소로 이동
+            showScreen('trainingScreen');
+            
+            // 로컬 스토리지에 저장
+            saveProgress();
+        }
+
+        // 화면 전환
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            
+            // 훈련소 화면일 때 버튼 텍스트 업데이트
+            if (screenId === 'trainingScreen') {
+                const missionBtn = document.getElementById('missionStartBtn');
+                if (missionBtn) {
+                    if (gameState.completedLevels.length >= 1) {
+                        missionBtn.textContent = '실전 미션 바로 시작 →';
+                        missionBtn.style.background = 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)';
+                    } else {
+                        missionBtn.textContent = '실전 미션 시작 →';
+                        missionBtn.style.background = '';
+                    }
+                }
+            }
+        }
+
+        // 훈련 시작
+        function startTraining(level) {
+            const levelCard = document.getElementById(`level${level}`);
+            if (level > 1 && !gameState.completedLevels.includes(level - 1)) {
+                showModal('알림', '이전 레벨을 먼저 완료해주세요!');
+                return;
+            }
+            
+            // 훈련 영역 표시
+            document.getElementById('trainingMenu').style.display = 'none';
+            document.getElementById('trainingArea').style.display = 'block';
+            
+            const training = trainingData[level];
+            
+            // 레벨별 특별 힌트
+            let extraHint = "";
+            if (level === 1) {
+                extraHint = "<br>🔍 똑같은 문장이 여러 번 나오는지 확인하세요!";
+            } else if (level === 2) {
+                extraHint = "<br>🔍 너무 짧거나 '굿!', '최고!' 같은 단순한 표현만 있는지 확인하세요!";
+            } else if (level === 3) {
+                extraHint = "<br>🔍 새벽 02:00~05:00 시간대에 올라온 리뷰를 찾으세요!";
+            } else if (level === 4) {
+                extraHint = "<br>🔍 이모지가 많거나 '핫플', '셀럽', '인생맛집' 같은 광고 문구를 찾으세요!";
+            }
+            
+            document.getElementById('trainingHint').innerHTML = `
+                <h3>${training.title}</h3>
+                <p>${training.instruction}${extraHint}</p>
+                <p>가짜 리뷰 <span id="foundCount">0</span>/<span id="totalFakes">${training.reviews.filter(r => r.fake).length}</span>개 찾음</p>
+            `;
+            
+            showTrainingReviews(level);
+        }
+
+        // 훈련 리뷰 표시
+        function showTrainingReviews(level) {
+            const training = trainingData[level];
+            const container = document.getElementById('trainingReviews');
+            container.innerHTML = '';
+            
+            training.reviews.forEach(review => {
+                const card = document.createElement('div');
+                card.className = 'review-card';
+                card.dataset.level = level;
+                card.dataset.reviewId = review.id;
+                card.dataset.fake = review.fake;
+                
+                const dateHtml = review.date ? `<div class="review-header"><span>${review.date}</span></div>` : '';
+                card.innerHTML = `
+                    ${dateHtml}
+                    <div class="review-text">${review.text}</div>
+                `;
+                
+                // 초기에는 모든 카드 클릭 가능
+                card.onclick = function() {
+                    checkTrainingAnswer(level, review.id, review.fake, this);
+                };
+                
+                container.appendChild(card);
+            });
+        }
+
+        // 훈련 답안 확인
+        function checkTrainingAnswer(level, reviewId, isFake, cardElement) {
+            // 이미 처리된 카드인지 확인 (맞춘 경우만)
+            if (cardElement.classList.contains('confirmed-fake')) {
+                return;
+            }
+            
+            if (isFake) {
+                cardElement.classList.add('confirmed-fake');
+                cardElement.classList.add('pulse');
+                
+                // 클릭 비활성화 (맞춘 경우에만)
+                cardElement.style.pointerEvents = 'none';
+                cardElement.style.cursor = 'not-allowed';
+                cardElement.onclick = null;
+                
+                gameState.score += 10;
+                updateScore();
+                
+                // 찾은 개수 업데이트
+                const foundCount = document.querySelectorAll('#trainingReviews .confirmed-fake').length;
+                const foundCountElement = document.getElementById('foundCount');
+                if (foundCountElement) {
+                    foundCountElement.textContent = foundCount;
+                }
+                
+                // 모든 가짜를 찾았는지 확인
+                setTimeout(() => {
+                    const fakeCount = trainingData[level].reviews.filter(r => r.fake).length;
+                    if (foundCount === fakeCount) {
+                        completeLevel(level);
+                    }
+                }, 500);
+            } else {
+                // 틀렸을 때: 점수 차감, 경고, 선택 취소
+                cardElement.classList.add('shake');
+                
+                gameState.score = Math.max(0, gameState.score - 50); // 점수가 음수가 되지 않도록
+                updateScore();
+                
+                // 경고 메시지 표시
+                showModal('⚠️ 틀렸습니다!', '진짜 리뷰를 선택했습니다.<br><br>🔍 다시 한번 신중하게 살펴보세요!<br>다시 선택할 수 있습니다.<br><br>📉 점수 -50점');
+                
+                // 애니메이션만 제거하고 선택은 유지
+                setTimeout(() => {
+                    cardElement.classList.remove('shake');
+                }, 500);
+            }
+        }
+
+        // 레벨 완료
+        function completeLevel(level) {
+            gameState.completedLevels.push(level);
+            document.getElementById(`level${level}`).classList.add('completed');
+            gameState.score += 50;
+            updateScore();
+            
+            showModal('🎉 레벨 완료!', `Level ${level}을 완료했습니다!<br>+50점 획득!<br><br>다음 레벨에 도전하세요!`, () => {
+                backToTrainingMenu();
+            });
+            
+            saveProgress();
+        }
+
+        // 훈련소로 돌아가기
+        function backToTraining() {
+            stopTimer();
+            showScreen('trainingScreen');
+        }
+
+        // 훈련소 메뉴로 돌아가기
+        function backToTrainingMenu() {
+            document.getElementById('trainingMenu').style.display = 'block';
+            document.getElementById('trainingArea').style.display = 'none';
+            document.getElementById('trainingReviews').innerHTML = '';
+        }
+
+        // 실전 미션
+        function showMission() {
+            if (gameState.completedLevels.length < 1) {
+                showModal('알림', '먼저 훈련소에서 Level 1을 완료해주세요!');
+                return;
+            }
+            
+            // 실전 미션 상태 초기화
+            gameState.accuracy = 0;
+            gameState.currentRestaurant = 0;
+            gameState.suspectedReviews = new Set();
+            gameState.confirmedFakes = new Set();
+            gameState.confirmedReals = new Set();
+            gameState.elapsedTime = 0;
+            
+            // 타이머 리셋
+            stopTimer();
+            const timerElement = document.getElementById('timer');
+            if (timerElement) {
+                timerElement.textContent = '00:00';
+            }
+            
+            // 화면 전환 및 초기화
+            showScreen('missionScreen');
+            updateRanking();
+            selectRestaurant(0);
+            startTimer();
+        }
+
+        // 레스토랑 선택
+        function selectRestaurant(index) {
+            gameState.currentRestaurant = index;
+            
+            // 순위 아이템 스타일 업데이트 - data attribute 사용
+            document.querySelectorAll('.ranking-item').forEach(item => {
+                const itemIndex = parseInt(item.dataset.restaurantIndex);
+                item.classList.toggle('selected', itemIndex === index);
+            });
+            
+            // 식당 정보 업데이트
+            const restaurant = restaurantData[index];
+            const restaurantNameElement = document.getElementById('currentRestName');
+            if (restaurantNameElement) {
+                restaurantNameElement.textContent = restaurant.name;
+            }
+            
+            // 삭제되지 않은 리뷰 수 계산
+            const visibleReviews = restaurant.reviews.filter(r => !gameState.deletedReviews.has(r.id)).length;
+            const reviewCountElement = document.getElementById('reviewCount');
+            if (reviewCountElement) {
+                reviewCountElement.textContent = `리뷰 ${visibleReviews}/${restaurant.reviews.length}개`;
+            }
+            
+            loadRestaurantReviews(index);
+        }
+
+        // 리뷰 로드
+        function loadRestaurantReviews(restaurantIndex) {
+            const restaurant = restaurantData[restaurantIndex];
+            const container = document.getElementById('reviewsContainer');
+            container.innerHTML = '';
+            
+            restaurant.reviews.forEach(review => {
+                const card = document.createElement('div');
+                card.className = 'review-card';
+                card.dataset.reviewId = review.id;
+                card.dataset.fake = review.fake;
+                
+                // 삭제된 리뷰 처리
+                const isDeleted = gameState.deletedReviews.has(review.id);
+                if (isDeleted) {
+                    card.classList.add('deleted');
+                }
+                
+                // 이미 처리된 리뷰 상태 복원
+                if (gameState.confirmedFakes.has(review.id)) {
+                    card.classList.add('confirmed-fake');
+                } else if (gameState.confirmedReals.has(review.id)) {
+                    card.classList.add('confirmed-real');
+                }
+                
+                // 버튼 결정 (삭제된 상태면 되살리기, 아니면 삭제)
+                const buttonHtml = isDeleted
+                    ? `<button class="restore-button" onclick="restoreReview(${review.id})">↺</button>`
+                    : `<button class="delete-button" onclick="deleteReview(${review.id})">×</button>`;
+                
+                card.innerHTML = `
+                    ${buttonHtml}
+                    <div class="review-header">
+                        <span class="review-date">${review.date}</span>
+                        <span class="review-rating">${'⭐'.repeat(review.rating)}</span>
+                    </div>
+                    <div class="review-text">${review.text}</div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // 리뷰 삭제
+        function deleteReview(reviewId) {
+            event.stopPropagation();
+            
+            // 삭제 리뷰 추가
+            gameState.deletedReviews.add(reviewId);
+            
+            const card = document.querySelector(`[data-review-id="${reviewId}"]`);
+            if (card) {
+                card.classList.add('deleted');
+                const deleteBtn = card.querySelector('.delete-button');
+                if (deleteBtn) {
+                    deleteBtn.outerHTML = `<button class="restore-button" onclick="restoreReview(${reviewId})">↺</button>`;
+                }
+            }
+            
+            // 즉시 순위 업데이트
+            updateRanking();
+            
+            updateDeletedCount();
+            
+            // 리뷰 수 업데이트
+            const restaurant = restaurantData[gameState.currentRestaurant];
+            const visibleReviews = restaurant.reviews.filter(r => !gameState.deletedReviews.has(r.id)).length;
+            const reviewCountElement = document.getElementById('reviewCount');
+            if (reviewCountElement) {
+                reviewCountElement.textContent = `리뷰 ${visibleReviews}/${restaurant.reviews.length}개`;
+            }
+            
+            // 의심 리뷰 카운트 업데이트
+            const foundCountElement = document.getElementById('foundCount');
+            if (foundCountElement) {
+                foundCountElement.textContent = gameState.deletedReviews.size;
+            }
+        }
+
+        // 리뷰 복원
+        function restoreReview(reviewId) {
+            event.stopPropagation();
+            
+            // 삭제 리뷰에서 제거
+            gameState.deletedReviews.delete(reviewId);
+            
+            const card = document.querySelector(`[data-review-id="${reviewId}"]`);
+            if (card) {
+                card.classList.remove('deleted');
+                const restoreBtn = card.querySelector('.restore-button');
+                if (restoreBtn) {
+                    restoreBtn.outerHTML = `<button class="delete-button" onclick="deleteReview(${reviewId})">×</button>`;
+                }
+            }
+            
+            // 즉시 순위 업데이트
+            updateRanking();
+            
+            updateDeletedCount();
+            
+            // 리뷰 수 업데이트
+            const restaurant = restaurantData[gameState.currentRestaurant];
+            const visibleReviews = restaurant.reviews.filter(r => !gameState.deletedReviews.has(r.id)).length;
+            const reviewCountElement = document.getElementById('reviewCount');
+            if (reviewCountElement) {
+                reviewCountElement.textContent = `리뷰 ${visibleReviews}/${restaurant.reviews.length}개`;
+            }
+            
+            // 의심 리뷰 카운트 업데이트
+            const foundCountElement = document.getElementById('foundCount');
+            if (foundCountElement) {
+                foundCountElement.textContent = gameState.deletedReviews.size;
+            }
+        }
+
+        // 삭제된 리뷰 수 업데이트
+        function updateDeletedCount() {
+            const deletedCountElement = document.getElementById('deletedCount');
+            if (deletedCountElement) {
+                deletedCountElement.textContent = gameState.deletedReviews.size;
+            }
+        }
+
+        // 정답 확인
+        function checkAnswers() {
+            // 확인 메시지 표시
+            showConfirmModal(
+                '분석 완료', 
+                '지금까지 삭제한 리뷰들을 기준으로 분석을 완료합니다.<br><br>⚠️ <strong>완료 후에는 의심스러운 패턴이 표시되며, 결과는 개인의 판단에 따라 다를 수 있습니다.</strong><br><br>분석을 완료하시겠습니까?',
+                () => {
+                    performAnswerCheck();
+                }
+            );
+        }
+
+        // 실제 분석 수행
+        function performAnswerCheck() {
+            let suspiciousCount = gameState.deletedReviews.size;
+            
+            // 시간 보너스 점수
+            const timeBonus = Math.max(0, 600 - gameState.elapsedTime) * 2;
+            gameState.score += suspiciousCount * 10 + timeBonus;
+            updateScore();
+            
+            // 의심스러운 패턴 표시 (가짜인 것만)
+            gameState.deletedReviews.forEach(reviewId => {
+                const card = document.querySelector(`[data-review-id="${reviewId}"]`);
+                if (card) {
+                    const isFake = card.dataset.fake === 'true';
+                    if (isFake) {
+                        // 실제 가짜인 경우에만 패턴 표시
+                        const restaurant = restaurantData.find(r => 
+                            r.reviews.some(rev => rev.id === reviewId)
+                        );
+                        const review = restaurant.reviews.find(r => r.id === reviewId);
+                        
+                        if (review && review.reason && !card.querySelector('.reason-tag')) {
+                            const reasonTag = document.createElement('div');
+                            reasonTag.className = 'reason-tag';
+                            reasonTag.innerHTML = `🔍 의심 패턴: ${review.reason}`;
+                            card.appendChild(reasonTag);
+                        }
+                    } else {
+                        // 진짜를 삭제한 경우 - 아무 표시 안함 (열린 결말)
+                        card.classList.add('confirmed-real');
+                    }
+                }
+            });
+            
+            updateRanking();
+            
+            const message = `
+                분석된 의심 리뷰: ${suspiciousCount}개<br>
+                소요 시간: ${formatTime(gameState.elapsedTime)}<br>
+                시간 보너스: +${timeBonus}점<br><br>
+                💡 <strong>각자의 판단 기준에 따라 결과가 다를 수 있습니다!</strong><br>
+                🔍 의심 패턴이 표시된 리뷰를 확인해보세요.
+            `;
+            
+            showModal('분석 완료', message);
+        }
+
+        // AI 순위 업데이트
+        function updateRanking() {
+            const rankings = restaurantData.map((restaurant, index) => {
+                const validReviews = restaurant.reviews.filter(r => !gameState.deletedReviews.has(r.id));
+                const avgRating = validReviews.length > 0 ? 
+                    validReviews.reduce((sum, r) => sum + r.rating, 0) / validReviews.length : 0;
+                return {
+                    name: restaurant.name,
+                    score: avgRating.toFixed(1),
+                    index: index,
+                    validCount: validReviews.length
+                };
+            }).sort((a, b) => b.score - a.score);
+            
+            const container = document.getElementById('rankingContainer');
+            container.innerHTML = '';
+            
+            rankings.forEach((item, rank) => {
+                const div = document.createElement('div');
+                div.className = 'ranking-item';
+                div.dataset.restaurantIndex = item.index; // 원래 인덱스 저장
+                if (item.index === gameState.currentRestaurant) {
+                    div.classList.add('selected');
+                }
+                div.innerHTML = `
+                    <span class="rank">${rank + 1}위</span>
+                    <span class="name">${item.name}</span>
+                    <span class="score">⭐ ${item.score}</span>
+                `;
+                div.onclick = () => selectRestaurant(item.index);
+                container.appendChild(div);
+            });
+        }
+
+        // 진행도 업데이트
+        function updateProgress() {
+            const totalReviews = restaurantData.reduce((sum, r) => sum + r.reviews.length, 0);
+            const analyzedReviews = gameState.deletedReviews.size;
+            
+            const progress = totalReviews > 0 ? Math.round((analyzedReviews / totalReviews) * 100) : 0;
+            
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `분석 ${progress}%`;
+            }
+            
+            const foundCountElement = document.getElementById('foundCount');
+            if (foundCountElement) {
+                foundCountElement.textContent = analyzedReviews;
+            }
+        }
+
+        // 결과 화면
+        function showResult() {
+            showScreen('resultScreen');
+            stopTimer();
+            
+            const suspiciousCount = gameState.deletedReviews.size;
+            
+            const finalScoreElement = document.getElementById('finalScore');
+            const foundFakesElement = document.getElementById('foundFakes');
+            const finalTimeElement = document.getElementById('finalTime');
+            
+            if (finalScoreElement) finalScoreElement.textContent = gameState.score;
+            if (foundFakesElement) foundFakesElement.textContent = suspiciousCount;
+            if (finalTimeElement) finalTimeElement.textContent = formatTime(gameState.elapsedTime);
+            
+            // 배지 표시
+            displayBadges();
+        }
+
+        // 배지 표시
+        function displayBadges() {
+            const container = document.getElementById('badgesContainer');
+            container.innerHTML = '';
+            
+            const suspiciousCount = gameState.deletedReviews.size;
+            
+            const badges = [
+                {icon: '🔍', name: '첫 번째 분석가', condition: suspiciousCount >= 1},
+                {icon: '👁️', name: '예리한 관찰자', condition: suspiciousCount >= 10},
+                {icon: '⚡', name: '스피드 분석가', condition: gameState.elapsedTime < 600},
+                {icon: '🧠', name: '신중한 분석가', condition: suspiciousCount >= 20},
+                {icon: '🎯', name: '패턴 헌터', condition: suspiciousCount >= 30}
+            ];
+            
+            badges.forEach(badge => {
+                if (badge.condition) {
+                    const div = document.createElement('div');
+                    div.className = 'badge';
+                    div.innerHTML = `
+                        <div class="badge-icon">${badge.icon}</div>
+                        <div class="badge-name">${badge.name}</div>
+                    `;
+                    container.appendChild(div);
+                }
+            });
+        }
+
+        // 실전 미션 리셋
+        function resetMission() {
+            // 타이머 정지
+            stopTimer();
+            
+            // 실전 미션 관련 상태만 리셋
+            gameState.accuracy = 0;
+            gameState.currentRestaurant = 0;
+            gameState.suspectedReviews = new Set();
+            gameState.confirmedFakes = new Set();
+            gameState.confirmedReals = new Set();
+            gameState.elapsedTime = 0;
+            gameState.deletedReviews = new Set(); // 삭제된 리뷰도 리셋
+            
+            // UI 업데이트
+            document.getElementById('timer').textContent = '00:00';
+            
+            // 실전 미션 화면으로 이동
+            showScreen('missionScreen');
+            updateRanking();
+            selectRestaurant(0);
+            startTimer();
+        }
+
+        // 타이머
+        function startTimer() {
+            // 기존 타이머가 있으면 정지
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            timerInterval = setInterval(() => {
+                gameState.elapsedTime++;
+                const timerElement = document.getElementById('timer');
+                if (timerElement) {
+                    timerElement.textContent = formatTime(gameState.elapsedTime);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 점수 업데이트
+        function updateScore() {
+            const scoreElement = document.getElementById('score');
+            if (scoreElement) {
+                scoreElement.textContent = gameState.score;
+            }
+        }
+
+        // 확인 모달
+        function showConfirmModal(title, message, confirmCallback) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').innerHTML = message;
+            
+            // 기존 버튼들 제거
+            const existingButtons = document.querySelector('.modal-content').querySelectorAll('button');
+            existingButtons.forEach(btn => btn.remove());
+            
+            // 새로운 버튼들 추가
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: center; margin-top: 20px;';
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn';
+            cancelBtn.style.background = '#6c757d';
+            cancelBtn.textContent = '취소';
+            cancelBtn.onclick = closeModal;
+            
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'btn';
+            confirmBtn.style.background = '#dc3545';
+            confirmBtn.textContent = '확인';
+            confirmBtn.onclick = () => {
+                closeModal();
+                if (confirmCallback) confirmCallback();
+            };
+            
+            buttonContainer.appendChild(cancelBtn);
+            buttonContainer.appendChild(confirmBtn);
+            document.querySelector('.modal-content').appendChild(buttonContainer);
+            
+            document.getElementById('modal').classList.add('active');
+        }
+
+        // 모달
+        function showModal(title, message, callback) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').innerHTML = message;
+            
+            // 기존 버튼들 제거
+            const existingButtons = document.querySelector('.modal-content').querySelectorAll('button');
+            existingButtons.forEach(btn => btn.remove());
+            
+            // 확인 버튼만 추가
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'btn';
+            confirmBtn.textContent = '확인';
+            confirmBtn.onclick = closeModal;
+            document.querySelector('.modal-content').appendChild(confirmBtn);
+            
+            document.getElementById('modal').classList.add('active');
+            
+            // callback 저장
+            window.modalCallback = callback || null;
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            
+            // callback 실행
+            if (window.modalCallback) {
+                const callback = window.modalCallback;
+                window.modalCallback = null;
+                callback();
+            }
+        }
+
+        // 진행상황 저장
+        function saveProgress() {
+            const progress = {
+                ...gameState,
+                deletedReviews: Array.from(gameState.deletedReviews),
+                confirmedFakes: Array.from(gameState.confirmedFakes),
+                confirmedReals: Array.from(gameState.confirmedReals),
+                timestamp: Date.now()
+            };
+            localStorage.setItem('detective_progress', JSON.stringify(progress));
+        }
+
+        // 진행상황 불러오기
+        function loadProgress() {
+            const saved = localStorage.getItem('detective_progress');
+            if (saved) {
+                const progress = JSON.parse(saved);
+                gameState = {
+                    ...progress,
+                    deletedReviews: new Set(progress.deletedReviews || []),
+                    confirmedFakes: new Set(progress.confirmedFakes || []),
+                    confirmedReals: new Set(progress.confirmedReals || [])
+                };
+                
+                // UI 복원
+                const userNameElement = document.getElementById('userName');
+                if (userNameElement) {
+                    userNameElement.textContent = gameState.userName;
+                }
+                updateScore();
+                
+                // 완료된 레벨 표시
+                gameState.completedLevels.forEach(level => {
+                    const levelElement = document.getElementById(`level${level}`);
+                    if (levelElement) {
+                        levelElement.classList.add('completed');
+                    }
+                });
+            }
+        }
+
+        // 모든 데이터 초기화
+        function clearAllData() {
+            // 커스텀 모달 사용
+            showConfirmModal(
+                '⚠️ 데이터 초기화', 
+                '정말로 모든 진행 상황을 삭제하시겠습니까?<br><br>🎮 삭제될 내용:<br>• 점수 및 진행 상황<br>• 완료한 훈련소 레벨<br>• 저장된 이름<br>• 삭제한 리뷰 상태<br><br><strong>이 작업은 되돌릴 수 없습니다!</strong>',
+                () => {
+                    try {
+                        // 로컬 스토리지 삭제
+                        localStorage.removeItem('detective_progress');
+                        
+                        // 게임 상태 초기화
+                        gameState = {
+                            userName: '탐정',
+                            score: 0,
+                            accuracy: 0,
+                            foundFakes: [],
+                            completedLevels: [],
+                            currentRestaurant: 0,
+                            startTime: null,
+                            elapsedTime: 0,
+                            deletedReviews: new Set(),
+                            confirmedFakes: new Set(),
+                            confirmedReals: new Set()
+                        };
+                        
+                        // 타이머 정지
+                        stopTimer();
+                        
+                        // UI 초기화
+                        const userNameEl = document.getElementById('userName');
+                        if (userNameEl) userNameEl.textContent = '탐정';
+                        
+                        const scoreEl = document.getElementById('score');
+                        if (scoreEl) scoreEl.textContent = '0';
+                        
+                        const timerEl = document.getElementById('timer');
+                        if (timerEl) timerEl.textContent = '00:00';
+                        
+                        const foundCountEl = document.getElementById('foundCount');
+                        if (foundCountEl) foundCountEl.textContent = '0';
+                        
+                        const userInput = document.getElementById('userNameInput');
+                        if (userInput) userInput.value = '';
+                        
+                        // 훈련소 레벨 초기화
+                        for (let i = 1; i <= 4; i++) {
+                            const levelElement = document.getElementById(`level${i}`);
+                            if (levelElement) {
+                                levelElement.classList.remove('completed');
+                            }
+                        }
+                        
+                        // 미션 버튼 초기화
+                        const missionBtn = document.getElementById('missionStartBtn');
+                        if (missionBtn) {
+                            missionBtn.textContent = '실전 미션 시작 →';
+                            missionBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                        }
+                        
+                        // 리뷰 UI 초기화 (삭제된 리뷰들 복구)
+                        const allReviewCards = document.querySelectorAll('.review-card');
+                        allReviewCards.forEach(card => {
+                            card.classList.remove('deleted', 'confirmed-fake', 'confirmed-real');
+                            const restoreBtn = card.querySelector('.restore-button');
+                            if (restoreBtn) {
+                                const reviewId = card.dataset.reviewId;
+                                restoreBtn.outerHTML = `<button class="delete-button" onclick="deleteReview(${reviewId})">×</button>`;
+                            }
+                            // reason-tag 제거
+                            const reasonTag = card.querySelector('.reason-tag');
+                            if (reasonTag) {
+                                reasonTag.remove();
+                            }
+                        });
+                        
+                        // 삭제 카운트 초기화
+                        const deletedCountEl = document.getElementById('deletedCount');
+                        if (deletedCountEl) deletedCountEl.textContent = '0';
+                        
+                        // 순위 업데이트
+                        if (typeof updateRanking === 'function') {
+                            updateRanking();
+                        }
+                        
+                        // 입장 화면으로 이동
+                        showScreen('introScreen');
+                        
+                        // 성공 메시지
+                        setTimeout(() => {
+                            showModal('✅ 초기화 완료', '모든 데이터가 성공적으로 초기화되었습니다!<br><br>새로운 게임을 시작해보세요! 🎮');
+                        }, 300);
+                        
+                    } catch (error) {
+                        showModal('❌ 오류', '초기화 중 오류가 발생했습니다.<br><br>페이지를 새로고침하고 다시 시도해주세요.');
+                    }
+                }
+            );
+        }
+        
+        // 현재 리뷰만 초기화 (삭제한 리뷰 복구)
+        function resetCurrentReviews() {
+            showConfirmModal(
+                '↺ 리뷰 초기화',
+                '삭제한 리뷰를 모두 복구하시겠습니까?<br><br>• 삭제했던 리뷰가 모두 복구됩니다<br>• 점수와 훈련소 진행은 유지됩니다',
+                () => {
+                    // 삭제된 리뷰 Set 초기화
+                    gameState.deletedReviews.clear();
+                    gameState.confirmedFakes.clear();
+                    gameState.confirmedReals.clear();
+                    
+                    // 현재 화면의 리뷰 다시 로드
+                    loadRestaurantReviews(gameState.currentRestaurant);
+                    
+                    // 삭제 카운트 초기화
+                    const deletedCountEl = document.getElementById('deletedCount');
+                    if (deletedCountEl) deletedCountEl.textContent = '0';
+                    
+                    // 의심 리뷰 카운트 초기화
+                    const foundCountEl = document.getElementById('foundCount');
+                    if (foundCountEl) foundCountEl.textContent = '0';
+                    
+                    // 리뷰 수 업데이트
+                    const restaurant = restaurantData[gameState.currentRestaurant];
+                    const reviewCountElement = document.getElementById('reviewCount');
+                    if (reviewCountElement && restaurant) {
+                        reviewCountElement.textContent = `리뷰 ${restaurant.reviews.length}/${restaurant.reviews.length}개`;
+                    }
+                    
+                    // 순위 업데이트
+                    updateRanking();
+                    
+                    showModal('✅ 리뷰 초기화 완료', '삭제했던 리뷰가 모두 복구되었습니다!');
+                }
+            );
+        }
+        
+        // 전역 함수로 등록 (onclick 핸들러에서 사용)
+        window.startGame = startGame;
+        window.deleteReview = deleteReview;
+        window.restoreReview = restoreReview;
+        window.clearAllData = clearAllData;
+        window.resetCurrentReviews = resetCurrentReviews;
+        window.showMission = showMission;
+        window.startTraining = startTraining;
+        window.backToTraining = backToTraining;
+        window.backToTrainingMenu = backToTrainingMenu;
+        window.checkAnswers = checkAnswers;
+        window.resetMission = resetMission;
+        window.selectRestaurant = selectRestaurant;
+
+        // 페이지 로드시 진행상황 복원
+        window.onload = function() {
+            loadProgress();
+            
+            // 훈련소 완료 상태에 따라 버튼 업데이트
+            const missionBtn = document.getElementById('missionStartBtn');
+            if (missionBtn && gameState.completedLevels.length >= 1) {
+                missionBtn.textContent = '실전 미션 바로 시작 →';
+                missionBtn.style.background = 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)';
+            }
+        };
+
+        // 페이지 벗어날 때 저장
+        window.onbeforeunload = function() {
+            if (gameState.userName !== '탐정') {
+                saveProgress();
+            }
+        };
+    </script>
+</body>
+</html>
